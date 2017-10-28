@@ -1,61 +1,61 @@
-var g_baseEval = 0;
-var g_castleRights = 0xf; //&1 = wk, &2 = wq, &4 = bk, &8 = bq
-var g_depthout = 0;
-var g_inCheck = false;
-var g_lastCastle = 0;
-var g_move50 = 0;
-var g_moveNumber = 0;
-var g_nodeout = 0;
-var g_passing = 0;
-var g_phase = 32;
-var g_scoreFm = '';
-var g_startTime = 0;
-var g_stop = false;
-var g_timeout = 0;
-var g_totalNodes = 0;
-var adjMobility = 0;
-var colorBlack = 0x08;
-var colorWhite = 0x10;
-var colorEmpty = 0x20;
-var colorEnemy = colorBlack;
 var piecePawn = 0x01;
 var pieceKnight = 0x02;
 var pieceBishop = 0x03;
 var pieceRook = 0x04;
 var pieceQueen = 0x05;
 var pieceKing = 0x06;
-var maskColor = colorBlack | colorWhite;
+var colorBlack = 0x08;
+var colorWhite = 0x10;
+var colorEmpty = 0x20;
 var moveflagPassing = 0x02 << 16;
 var moveflagCastleKing = 0x04 << 16;
 var moveflagCastleQueen = 0x08 << 16;
 var moveflagPromotion = 0xf0 << 16;
 var moveflagPromoteQueen = 0x10 << 16;
-var moveflagPromoteRook = 0x20 << 16;
+var moveflagPromoteRook  = 0x20 << 16;
 var moveflagPromoteBishop = 0x40 << 16;
 var moveflagPromoteKnight = 0x80 << 16;
 var maskCastle = moveflagCastleKing | moveflagCastleQueen;
-var optCenter = 0;
-var whiteTurn=true;
-var arrMobility = [];
-var boardCastle=new Array(256);
-var boardCheck=new Array(256);
-var g_board=new Array(256);
+var maskColor = colorBlack | colorWhite;
+var g_baseEval = 0;
+var g_castleRights = 0xf; //&1 = wk, &2 = wq, &4 = bk, &8 = bq
+var g_passing = 0;
+var g_move50 = 0;
+var g_moveNumber = 0;
+var g_totalNodes = 1;
+var g_startTime = 0;
+var g_inCheck = false;
+var g_depthout = 0;
+var g_timeout = 0;
+var g_nodeout = 0;
+var g_stop = false;
+var g_scoreFm = '';
+var g_lastCastle = 0;
+var g_phase = 32;
+var undoStack = [];
+var g_board = new Array(256);
+var boardCheck = new Array(256);
+var boardCastle = new Array(256);
 var g_pieceIndex = new Array(256);
 var g_pieceList = new Array(2 * 8 * 16);
 var g_pieceCount = new Array(2 * 8);
+var whiteTurn = true;
+var colorEnemy = colorBlack;
 var his = [];
-var pieceValue = [];
-var tmpCenter = [[8,4],[0xf,0xf],[8,0xf],[-8,8],[8,0xf],[-0xf,0xf]];
+var tmpCenter = [[4,2],[8,8],[4,8],[-8,8],[8,0xf],[-0xf,0xf]];
 var tmpMaterial = [[171,240],[764,848],[826,891],[1282,1373],[2526,2646],[0xffff,0xffff]];  
 var tmpPassed = [[5,7],[5,14],[31,38],[73,73],[166,166],[252,252]];  
-var tmpMobility=[
+var tmpMobility = [
 [[]],//pawn
 [[-75,-76],[-57,-54],[-9,-28],[-2,-10],[6,5],[14,12],[22, 26],[29,29],[36, 29]],//knight
 [[-48,-59],[-20,-23],[16, -3],[26, 13],[38, 24],[51, 42],[55, 54],[63, 57],[63, 65],[68, 73],[81, 78],[81, 86],[91, 88],[98, 97]],//bishop
 [[-58,-76],[-27,-18],[-15, 28],[-10, 55],[-5, 69],[-2, 82],[9,112],[16,118],[30,132],[29,142],[32,155],[38,165],[46,166],[48,169],[58,171]],//rook
 [[-39,-36],[-21,-15],[3,  8],[3, 18],[14, 34],[22, 54],[28, 61],[41, 73],[43, 79],[48, 92],[56, 94],[60,104],[60,113],[66,120],[67,123],[70,126],[71,133],[73,136],[79,140],[88,143],[88,148],[99,166],[102,170],[102,175],[106,184],[109,191],[113,206],[116,212]],//queen
-[[9,90],[8,80],[7,70],[6,60],[5,50],[4,40],[3,30],[2,20],[1,10]]];//king
-var undoStack = [];
+[[90,9],[80,8],[70,7],[60,6],[50,5],[40,4],[30,3],[20,2],[10,1]]];//king
+var arrMobility = [];
+var adjMobility = 0;
+var pieceValue = [];
+var optCenter = 0;
 
 function StrToSquare(s){
 var fl = {a:0, b:1, c:2, d:3, e:4,f:5, g:6, h:7};
@@ -127,10 +127,16 @@ for(var n = 0; n < 256; n++){
 	boardCheck[n] = 0;
 	boardCastle[n]=15;
 	if((x>3) && (y>3) && (x<12) && (y<12))
-		g_board[n]=colorEmpty;
+		g_board[n] = colorEmpty;
 	else
-		g_board[n]=0;
+		g_board[n] = 0;
 }
+var cm = [[68,7],[72,3],[75,11],[180,13],[184,12],[187,14]];
+for(var n = 0;n < cm.length;n++)
+	boardCastle[cm[n][0]] = cm[n][1];
+var bm = [[71,colorBlack | moveflagCastleQueen],[72,colorBlack | maskCastle],[73,colorBlack | moveflagCastleKing],[183,colorWhite | moveflagCastleQueen],[184,colorWhite | maskCastle],[185,colorWhite | moveflagCastleKing]];
+for(var n = 0;n < cm.length;n++)
+	boardCheck[bm[n][0]] = bm[n][1];
 for(var p = 0;p < 6;p++){
 	arrMobility[p] = [];
 	for(var ph = 2;ph < 33;ph++){
@@ -167,7 +173,7 @@ for(var n = 0; n < 256; n++){
 				var b = tmpCenter[p - 1][1];
 				a = optCenter > 0 ? a << optCenter : a >> optCenter;
 				b = optCenter > 0 ? b << optCenter : b >> optCenter;
-				v  += Math.floor(a * f + b * (1 - f));
+				v  += Math.floor((a * f + b * (1 - f)) * center);
 				pieceValue[ph][p][n] = v;
 				pieceValue[ph][p | 8][nb] = v;
 				if(p == 1 && y > 4 && y < 11){
@@ -185,15 +191,20 @@ for(var n = 0; n < 256; n++){
 }
 
 function InitializeFromFen(fen){
+for(var n = 0; n < 256; n++)
+	if(g_board[n])
+		g_board[n] = colorEmpty;
+/*for(var n = 0; n < 256; n++){
+	var x = n & 0xf;
+	var y = n >> 4;
+	if((x>3) && (y>3) && (x<12) && (y<12))
+		g_board[n] = colorEmpty;
+	else
+		g_board[n] = 0;
+}*/
 g_phase = 0;
-Initialize();
 if(!fen)fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 var chunks = fen.split(' ');
-var cm=[[68,7],[72,3],[75,11],[180,13],[184,12],[187,14]];
-for(var n=0;n<cm.length;n++)boardCastle[cm[n][0]] = cm[n][1];
-var bm=[[71,colorBlack|moveflagCastleQueen],[72,colorBlack|maskCastle],[73,colorBlack|moveflagCastleKing],[183,colorWhite|moveflagCastleQueen],[184,colorWhite|maskCastle],[185,colorWhite|moveflagCastleKing]];
-for(var n=0;n<cm.length;n++)
-	boardCheck[bm[n][0]] = bm[n][1];
 var row = 0;
 var col = 0;
 var pieces = chunks[0];
@@ -209,7 +220,7 @@ for (var i = 0; i < pieces.length; i++){
 		g_phase++;
 		var isBlack = c >= 'a' && c <= 'z';
 		var piece = isBlack ? colorBlack : colorWhite;
-		var index = (row+4)*16 + col+4;
+		var index = (row + 4) * 16 + col + 4;
 		switch(c){
 			case 'p':
 			case 'P':
@@ -285,18 +296,32 @@ for (var i = 0; i < 256; i++){
 if (!whiteTurn) g_baseEval = -g_baseEval;
 }
 
+var countNA = 0;
+
 function GenerateMove(moveStack,fr,to,add,flags){
-if(add)moveStack[moveStack.length] = fr | (to << 8) | flags;
-if(((g_board[to] & 7) == pieceKing) || (((boardCheck[to] & g_lastCastle) == g_lastCastle)&&(g_lastCastle & maskCastle)))
+var p = g_board[to] & 7;
+if(add){
+	var p = g_board[to] & 7;
+	var m = fr | (to << 8) | flags;
+	if(p)
+		moveStack[moveStack.length] = m;
+	else{
+		moveStack[moveStack.length] = moveStack[countNA];
+		moveStack[countNA++] = m;
+	}
+		
+}
+if((p == pieceKing) || (((boardCheck[to] & g_lastCastle) == g_lastCastle)&&(g_lastCastle & maskCastle)))
 	g_inCheck = true;
 }
 
 function GenerateAllMoves(wt){
 g_inCheck = false;	
 adjMobility = 0;
+countNA = 0;
 var ml = 0;
 colorEnemy = wt ? colorBlack : colorWhite;
-var moves=[];
+var moves = [];
 var fr,to,del,pieceIdx;
 var color = wt ? 0:0x8;
 var mask = colorEnemy | colorEmpty;
@@ -359,10 +384,12 @@ while(fr){
 }
 pieceIdx = (color | 6) << 4;//king
 fr = g_pieceList[pieceIdx++];
-ml = moves.length;
-GenerateKingMoves(wt,moves,fr);
-fr = g_pieceList[pieceIdx++];
-adjMobility += arrMobility[5][g_phase][moves.length - ml];
+while(fr){
+	ml = moves.length;
+	GenerateKingMoves(wt,moves,fr);
+	fr = g_pieceList[pieceIdx++];
+	adjMobility += arrMobility[5][g_phase][moves.length - ml];
+}
 return moves;
 }
 
@@ -551,54 +578,60 @@ g_moveNumber--;
 }
 
 var bsIn = -1;
-var bsDe = 0;
 var bsFm = '';
 var bsPv = '';
 
-function GetScoreQ(mu,alpha,beta,score){
-var osScore = -0xffff;
-var osPv = '';
+function Quiesce(mu,depth,alpha,beta,score){
 var n = mu.length;
+var alphaDe = 0;
 var alphaFm = '';
 var alphaPv = '';
 var myMobility = adjMobility;
-if(alpha < score)alpha = score;
-if(alpha >= beta)return	{score:score,pv:''};	
-while(n--){
+if(alpha < score)
+	alpha = score;
+if(alpha >= beta)
+	alpha = score;
+else while(n--){
 	if(!(g_totalNodes & 0x1ffff))	
 		g_stop = ((g_timeout && ((new Date()).getTime() - g_startTime > g_timeout)) ||  (g_nodeout && (g_totalNodes > g_nodeout)));
-	if(g_stop)return {score:-0xffff};
+	if(g_stop){
+		alpha = -0xffff;
+		break;
+	}
 	var cm = mu[n];
 	var to = (cm >> 8) & 0xFF;
-	if(!(g_board[to] & 0x7))continue;
+	if(!(g_board[to] & 0x7))break;
 	MakeMove(cm);
 	var me = GenerateAllMoves(whiteTurn);
-	osScore = -g_baseEval + myMobility - adjMobility;
-	if(g_inCheck){
+	var osPv = '';
+	var osDe = 0;
+	var osScore = -g_baseEval + myMobility - adjMobility;
+	if(g_inCheck)
 		osScore = -0xffff;
-		osPv = '';
-	}else{
-		var os = GetScoreQ(me,-beta,-alpha,-osScore);
+	else if(depth < g_depthout){
+		var os = Quiesce(me,depth + 1,-beta,-alpha,-osScore);
 		osScore = -os.score;
 		osPv = ' ' + os.pv;
+		osDe = os.depthq;
 	}
-	if(alpha < osScore){
+	UnmakeMove(cm);
+	if((!g_stop)&&(alpha < osScore)){
 		alpha = osScore;
+		alphaDe = osDe + 1;
 		alphaFm = FormatMove(cm);
 		alphaPv = alphaFm + osPv;
 	}
-	UnmakeMove(cm);
 	if(alpha >= beta)break;
 }	
-return {score:alpha,pv:alphaPv};
+return {score:alpha,depthq:alphaDe,pv:alphaPv};
 }
 
 function GetScore(mu,depth,alpha,beta){
-var osScore = -0xffff;
 var osDepth = depth;
 var check = 0;
 var n = mu.length;
 var noCheck = n;
+var alphaDe = 0;
 var alphaFm = '';
 var alphaPv = '';
 var myMobility = adjMobility;
@@ -610,21 +643,24 @@ while(n--){
 	MakeMove(cm);
 	var me = GenerateAllMoves(whiteTurn);
 	var osPv = '';
+	var osDe = 0;
+	var osScore = -g_baseEval + myMobility - adjMobility;
 	if(g_inCheck){
 		noCheck--;
 		osScore = -0xffff;
-	}else if((g_move50 > 99) || IsRepetition())
+	}else if((g_move50 > 99) || ((depth == 1) && IsRepetition()))
 		osScore = 0;
 	else if(depth < g_depthout){
 		var os = GetScore(me,depth + 1,-beta,-alpha);
 		osScore = -os.score;
 		osPv = ' ' + os.pv;
+		osDe = os.depthq;
 		osDepth = os.depth + 1;
 	}else{
-		osScore = -g_baseEval + myMobility - adjMobility;
-		var qs =  GetScoreQ(me,-beta,-alpha,-osScore);
+		var qs =  Quiesce(me,1,-beta,-alpha,-osScore);
 		osScore = -qs.score;
 		osPv = ' ' + qs.pv;
+		osDe = qs.depthq;
 		osDepth = depth + 1;
 	}
 	UnmakeMove(cm);
@@ -632,6 +668,7 @@ while(n--){
 		alpha = osScore;
 		alphaFm = FormatMove(cm);
 		alphaPv = alphaFm + osPv;
+		alphaDe = osDe + 1;
 		if(depth == 1){
 			if(osScore > 0xf000)
 				g_scoreFm = 'mate ' + ((0xffff - osScore) >> 1);
@@ -643,18 +680,16 @@ while(n--){
 			bsFm = alphaFm;
 			bsPv = alphaPv;
 			var nps = Math.floor((g_totalNodes / ((new Date()).getTime() - g_startTime)) * 1000);
-			var sd = (bsPv.trim().split(' ')).length;
-			postMessage('info currmove ' + bsFm + ' currmovenumber ' + n + ' nodes ' + g_totalNodes + ' nps ' + nps + ' depth ' + g_depthout + ' seldepth ' + sd + ' score ' + g_scoreFm + ' pv ' + bsPv);
+			postMessage('info currmove ' + bsFm + ' currmovenumber ' + n + ' nodes ' + g_totalNodes + ' nps ' + nps + ' depth ' + g_depthout + ' seldepth ' + alphaDe + ' score ' + g_scoreFm + ' pv ' + bsPv);
 		}
 	}
 	if(alpha >= beta)break;
-
 }
 if(!noCheck && !g_stop){
 	GenerateAllMoves(!whiteTurn);
 	if(!g_inCheck)alpha = 0;else alpha = -0xffff + depth;
 }
-return {score:alpha,depth:osDepth,pv:alphaPv};
+return {score:alpha,depth:osDepth,depthq:alphaDe,pv:alphaPv};
 }
 
 function Search(depth,time,nodes){
@@ -663,7 +698,7 @@ if(!depth && !time && !nodes)
 var mu = GenerateAllMoves(whiteTurn);
 var m1 = mu.length - 1;
 g_stop = false;
-g_totalNodes = 0;
+g_totalNodes = 1;
 g_depthout = depth ? depth : 1;
 g_timeout = time;
 g_nodeout = nodes;
@@ -676,7 +711,7 @@ do{
 		mu[m1] = mu[bsIn];
 		mu[bsIn] = m;
 	}
-	if(gs.depth < g_depthout++)break;
+	if(gs.depth < g_depthout++ || gs.score < - 0xf000 || gs.score > 0xf000)break;
 }while((!depth || (g_depthout < depth)) && !g_stop && m1);
 var nps = Math.floor((g_totalNodes / ((new Date()).getTime() - g_startTime)) * 1000);
 var ponder = bsPv.split(' ');
@@ -727,6 +762,7 @@ return def;
 }
 
 var uci = new cUci();
+Initialize();
 
 onmessage = function(e){
 (/^(.*?)\n?$/).exec(e.data);
