@@ -798,8 +798,10 @@ switch (uci.tokens[0]){
 		}
 	break;
 	case 'stop':
-	case 'quit':
 		g_stop = true;
+	break;
+	case 'quit':
+		close();
 	break;
 	case 'uci':
 		postMessage('id name rapspeed');
