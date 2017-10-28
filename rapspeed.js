@@ -194,14 +194,6 @@ function InitializeFromFen(fen){
 for(var n = 0; n < 256; n++)
 	if(g_board[n])
 		g_board[n] = colorEmpty;
-/*for(var n = 0; n < 256; n++){
-	var x = n & 0xf;
-	var y = n >> 4;
-	if((x>3) && (y>3) && (x<12) && (y<12))
-		g_board[n] = colorEmpty;
-	else
-		g_board[n] = 0;
-}*/
 g_phase = 0;
 if(!fen)fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 var chunks = fen.split(' ');
