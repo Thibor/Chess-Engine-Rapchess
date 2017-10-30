@@ -42,7 +42,7 @@ var g_pieceCount = new Array(2 * 8);
 var whiteTurn = true;
 var colorEnemy = colorBlack;
 var his = [];
-var tmpCenter = [[4,2],[8,8],[4,8],[-8,8],[8,0xf],[-0xf,0xf]];
+var tmpCenter = [[4,2],[8,8],[4,8],[-8,8],[8,0xf],[-0xf,8]];
 var tmpMaterial = [[171,240],[764,848],[826,891],[1282,1373],[2526,2646],[0xffff,0xffff]];  
 var tmpPassed = [[5,7],[5,14],[31,38],[73,73],[166,166],[252,252]];  
 var tmpMobility = [
@@ -386,25 +386,25 @@ return moves;
 }
 
 function MovePawnTo(moveStack,fr,to,add,flag) {
-	var y=to>>4;
-	if (((y ==4) || (y == 11)) && add){
-		GenerateMove(moveStack,fr,to,add,moveflagPromoteQueen);
-		GenerateMove(moveStack,fr,to,add,moveflagPromoteRook);
-		GenerateMove(moveStack,fr,to,add,moveflagPromoteBishop);
-		GenerateMove(moveStack,fr,to,add,moveflagPromoteKnight);
-	}else
-		GenerateMove(moveStack,fr,to,add,flag);
+var y = to >> 4;
+if (((y == 4) || (y == 11)) && add){
+	GenerateMove(moveStack,fr,to,add,moveflagPromoteQueen);
+	GenerateMove(moveStack,fr,to,add,moveflagPromoteRook);
+	GenerateMove(moveStack,fr,to,add,moveflagPromoteBishop);
+	GenerateMove(moveStack,fr,to,add,moveflagPromoteKnight);
+}else
+	GenerateMove(moveStack,fr,to,add,flag);
 }
 
 function GenerateStdMoves(moveStack,from,dir){
 for(var n=0;n<dir.length;n++){
-var to = from + dir[n];
-while (g_board[to] & colorEmpty){
-	GenerateMove(moveStack,from, to,true);
-	to += dir[n];
-};
-if (g_board[to] & colorEnemy)
-	GenerateMove(moveStack,from, to,true);
+	var to = from + dir[n];
+	while (g_board[to] & colorEmpty){
+		GenerateMove(moveStack,from, to,true);
+		to += dir[n];
+	}
+	if (g_board[to] & colorEnemy)
+		GenerateMove(moveStack,from, to,true);
 }
 }
 
