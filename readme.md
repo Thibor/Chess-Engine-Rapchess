@@ -7,8 +7,10 @@ To use this engine please download program Jsuci (https://sourceforge.net/projec
 
 You need download program Arena (http://www.playwitharena.com/?Download).
 
-In Comand Line please write path to jsuci.exe (D:\Games\Chess\Arena\Engines\jsuci\jsuci.exe).
-In Comand Line Parameters please write path to rapspeed.js.
+In Comand Line please write path to jsuci.exe (<b>D:\Games\Chess\Arena\Engines\jsuci\jsuci.exe</b>).
+
+In Comand Line Parameters please write path to <b>rapspeed.js</b>.
+
  <img src="arena.jpg" />
  
  ## Setup GUI Winboard
