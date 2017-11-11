@@ -620,7 +620,7 @@ var alphaPv = '';
 var myMobility = adjMobility;
 while(n--){
 	if(!(g_totalNodes & 0x1ffff))	
-		g_stop = ((g_timeout && ((new Date()).getTime() - g_startTime > g_timeout)) ||  (g_nodeout && (g_totalNodes > g_nodeout)));
+		g_stop = ((g_timeout && (Date.now() - g_startTime > g_timeout)) ||  (g_nodeout && (g_totalNodes > g_nodeout)));
 	if(g_stop)return {score:-0xffff};
 	var cm = mu[n];
 	MakeMove(cm);
@@ -658,7 +658,7 @@ while(n--){
 			bsIn = n;
 			bsFm = alphaFm;
 			bsPv = alphaPv;
-			var nps = Math.floor((g_totalNodes / ((new Date()).getTime() - g_startTime)) * 1000);
+			var nps = Math.floor((g_totalNodes / (Date.now() - g_startTime)) * 1000);
 			postMessage('info currmove ' + bsFm + ' currmovenumber ' + n + ' nodes ' + g_totalNodes + ' nps ' + nps + ' depth ' + g_depthout + ' seldepth ' + alphaDe + ' score ' + g_scoreFm + ' pv ' + bsPv);
 		}
 	}
@@ -679,7 +679,7 @@ g_totalNodes = 1;
 g_depthout = depth ? depth : 1;
 g_timeout = time;
 g_nodeout = nodes;
-g_startTime = (new Date()).getTime();
+g_startTime = Date.now();
 do{
 	bsIn = m1;
 	var os = GetScore(mu,1,g_depthout,-0xffff,0xffff);
@@ -690,7 +690,7 @@ do{
 	}
 	if(os.depth < g_depthout++ || os.score < - 0xf000 || os.score > 0xf000)break;
 }while((!depth || (g_depthout < depth)) && !g_stop && m1);
-var nps = Math.floor((g_totalNodes / ((new Date()).getTime() - g_startTime)) * 1000);
+var nps = Math.floor((g_totalNodes / (Date.now() - g_startTime)) * 1000);
 var ponder = bsPv.split(' ');
 var pm = ponder.length > 1 ? ' ponder ' + ponder[1] : '';
 postMessage('info nodes ' + g_totalNodes + ' nps ' + nps);
