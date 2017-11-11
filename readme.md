@@ -1,7 +1,7 @@
 # Rapspeed
->Javascript UCI chess engine  
+>Javascript UCI chess engine.
 
-To use this engine please download program Jsuci (https://sourceforge.net/projects/jsuci/).  
+To use this engine please download program Jsuci (https://sourceforge.net/projects/jsuci/).
 
 ## Setup GUI Arena
 
@@ -14,3 +14,7 @@ In Comand Line Parameters please write path to rapspeed.js.
  ## Setup GUI Winboard
  
  You need download program Winboard (http://www.open-aurec.com/wbforum/viewtopic.php?t=51528).
+ 
+ After you should click in Menu Engine / Edit Engine List and add line:
+ 
+<b>"Rapspeed" -fd "..\Jsuci" -fcp "jsuci.exe rapspeed.js" /fUCI</b>
