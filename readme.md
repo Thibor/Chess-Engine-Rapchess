@@ -5,7 +5,12 @@ To use this engine please download program Jsuci (https://sourceforge.net/projec
 
 ## Setup GUI Arena
 
-After you need setup new engine in program Arena (http://www.playwitharena.com/?Download).
+You need download program Arena (http://www.playwitharena.com/?Download).
+
 In Comand Line please write path to jsuci.exe (D:\Games\Chess\Arena\Engines\jsuci\jsuci.exe).
 In Comand Line Parameters please write path to rapspeed.js.
  <img src="arena.jpg" />
+ 
+ ## Setup GUI Winboard
+ 
+ You need download program Winboard (http://www.open-aurec.com/wbforum/viewtopic.php?t=51528).
