@@ -711,7 +711,7 @@ switch (uci.tokens[0]){
 			var ct = whiteTurn ? uci.getInt('wtime',0) : uci.getInt('btime',0);
 			var ci = whiteTurn ? uci.getInt('winc',0) : uci.getInt('binc',0);
 			var mg = uci.getInt('movestogo',32);
-			t = Math.floor(ct / mg) + ci;
+			t = Math.floor(ct / mg + ci - 64);
 		}
 		Search(d,t,n);
 	break;
