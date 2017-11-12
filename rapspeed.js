@@ -576,7 +576,7 @@ if(alpha >= beta)
 	alpha = score;
 else while(n--){
 	if(!(g_totalNodes & 0x1ffff))	
-		g_stop = ((g_timeout && ((new Date()).getTime() - g_startTime > g_timeout)) ||  (g_nodeout && (g_totalNodes > g_nodeout)));
+		g_stop = ((depthL > 1) && ((g_timeout && ((new Date()).getTime() - g_startTime > g_timeout)) ||  (g_nodeout && (g_totalNodes > g_nodeout))));
 	if(g_stop){
 		alpha = -0xffff;
 		break;
@@ -619,8 +619,8 @@ var alphaFm = '';
 var alphaPv = '';
 var myMobility = adjMobility;
 while(n--){
-	if(!(g_totalNodes & 0x1ffff))	
-		g_stop = ((g_timeout && (Date.now() - g_startTime > g_timeout)) ||  (g_nodeout && (g_totalNodes > g_nodeout)));
+	if(!(g_totalNodes & 0x1fff))	
+		g_stop = ((depthL > 1) && ((g_timeout && (Date.now() - g_startTime > g_timeout)) ||  (g_nodeout && (g_totalNodes > g_nodeout))));
 	if(g_stop)return {score:-0xffff};
 	var cm = mu[n];
 	MakeMove(cm);
@@ -643,7 +643,7 @@ while(n--){
 		osDe = os.depth;
 	}
 	UnmakeMove(cm);
-	if((!g_stop)&&(alpha < osScore)){
+	if((!g_stop) && (alpha < osScore)){
 		alpha = osScore;
 		alphaFm = FormatMove(cm);
 		alphaPv = alphaFm + osPv;
@@ -688,7 +688,7 @@ do{
 		mu[m1] = mu[bsIn];
 		mu[bsIn] = m;
 	}
-	if(os.depth < g_depthout++ || os.score < - 0xf000 || os.score > 0xf000)break;
+	if((os.depth < g_depthout++) || (os.score < - 0xf000) || (os.score > 0xf000))break;
 }while((!depth || (g_depthout < depth)) && !g_stop && m1);
 var nps = Math.floor((g_totalNodes / (Date.now() - g_startTime)) * 1000);
 var ponder = bsPv.split(' ');
@@ -752,11 +752,11 @@ switch (uci.tokens[0]){
 		var t  = uci.getInt('movetime',0);
 		var d = uci.getInt('depth',0);
 		var n = uci.getInt('nodes',0);
-		if(!t){
+		if(!t && !d && !t){
 			var ct = whiteTurn ? uci.getInt('wtime',0) : uci.getInt('btime',0);
 			var ci = whiteTurn ? uci.getInt('winc',0) : uci.getInt('binc',0);
-			var mg = uci.getInt('movestogo',64) + 1;
-			t = Math.floor(ct / mg + ci - 64);
+			var mg = uci.getInt('movestogo',32);
+			t = Math.floor(ct / mg + ci - 0xff);
 		}
 		Search(d,t,n);
 	break;
