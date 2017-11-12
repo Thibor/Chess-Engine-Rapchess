@@ -707,11 +707,11 @@ switch (uci.tokens[0]){
 		var t  = uci.getInt('movetime',0);
 		var d = uci.getInt('depth',0);
 		var n = uci.getInt('nodes',0);
-		if(!t){
+		if(!t && !d && !n){
 			var ct = whiteTurn ? uci.getInt('wtime',0) : uci.getInt('btime',0);
 			var ci = whiteTurn ? uci.getInt('winc',0) : uci.getInt('binc',0);
 			var mg = uci.getInt('movestogo',32);
-			t = Math.floor(ct / mg + ci - 64);
+			t = Math.floor(ct / mg + ci - 0xff);
 		}
 		Search(d,t,n);
 	break;
