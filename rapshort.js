@@ -163,8 +163,6 @@ for(var n = 0; n < 256; n++){
 	var cy = Math.min(y,0xf - y) - 3;
 	var center = (cx * cy) - 1;
 	if((x > 3) && (y > 3) && (x < 12) && (y < 12)){
-		var iw = (y - 4) * 8 + (x - 4);
-		var ib = (11 - y) * 8 + (x - 4);
 		for(var ph = 2;ph < 33;ph++){
 			var f = (ph - 2) / 32;
 			for(var p = 1;p < 7;p++){
@@ -575,7 +573,7 @@ if(depth > depthL){
 }
 while(n--){
 	if(!(g_totalNodes & 0x1ffff))	
-		g_stop = ((g_timeout && ((new Date()).getTime() - g_startTime > g_timeout)) ||  (g_nodeout && (g_totalNodes > g_nodeout)));
+		g_stop = ((g_timeout && (Date.now() - g_startTime > g_timeout)) ||  (g_nodeout && (g_totalNodes > g_nodeout)));
 	if(g_stop)return {score:-0xffff};
 	var cm = mu[n];
 	var to = (cm >> 8) & 0xFF;
@@ -636,7 +634,6 @@ g_stop = false;
 g_totalNodes = 1;
 g_timeout = time;
 g_nodeout = nodes;
-g_startTime = (new Date()).getTime();
 do{
 	bsIn = m1;
 	var os = GetScore(mu,1,g_depth,g_depth << 1,-0xffff,0xffff,-0xffff);
@@ -664,7 +661,6 @@ this.lastCastle = lastCastle;
 }
 
 var cUci=function(){
-this.message = '';
 this.tokens = [];
 }
 
@@ -698,12 +694,13 @@ Initialize();
 
 onmessage = function(e){
 (/^(.*?)\n?$/).exec(e.data);
-uci.message = RegExp.$1;
-uci.message = uci.message.trim();
-uci.message = uci.message.replace(/\s+/g,' ');
-uci.tokens  = uci.message.split(' ');
+var m = RegExp.$1;
+m = m.trim();
+m = m.replace(/\s+/g,' ');
+uci.tokens  = m.split(' ');
 switch (uci.tokens[0]){
 	case 'go':
+		g_startTime = Date.now();
 		var t  = uci.getInt('movetime',0);
 		var d = uci.getInt('depth',0);
 		var n = uci.getInt('nodes',0);
@@ -756,7 +753,6 @@ switch (uci.tokens[0]){
 		postMessage('uciok');
 	break;
 	case 'ucinewgame':
-		InitializeFromFen();
 	break;
 }
 }

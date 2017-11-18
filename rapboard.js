@@ -6,7 +6,6 @@ var pieceQueen = 0x05;
 var pieceKing = 0x06;
 var colorBlack = 0x08;
 var colorWhite = 0x10;
-var colorEmpty = 0x20;
 var moveflagPassing = 0x02 << 16;
 var moveflagCastleKing = 0x04 << 16;
 var moveflagCastleQueen = 0x08 << 16;
@@ -19,7 +18,7 @@ var maskCastle = moveflagCastleKing | moveflagCastleQueen;
 var maskColor = colorBlack | colorWhite;
 var g_baseEval = 0;
 var g_castleRights = 0xf; //&1 = wk, &2 = wq, &4 = bk, &8 = bq
-var g_passing = 0;
+var g_passing = 65;
 var g_move50 = 0;
 var g_moveNumber = 0;
 var g_totalNodes = 0;
@@ -33,15 +32,33 @@ var g_scoreFm = '';
 var g_lastCastle = 0;
 var g_phase = 32;
 var undoStack = [];
-var g_board = new Array(256);
-var boardCheck = new Array(256);
-var boardCastle = new Array(256);
+var g_board =  new Array(65);
 var g_pieceIndex = new Array(256);
 var g_pieceList = new Array(2 * 8 * 16);
 var g_pieceCount = new Array(2 * 8);
+var g_destiny = new Array(8);
 var whiteTurn = true;
+var colorMy = colorWhite;
 var colorEnemy = colorBlack;
 var his = [];
+boardCastle =[
+ 7,15,15,15, 3,15,15,11,
+15,15,15,15,15,15,15,15,
+15,15,15,15,15,15,15,15,
+15,15,15,15,15,15,15,15,
+15,15,15,15,15,15,15,15,
+15,15,15,15,15,15,15,15,
+15,15,15,15,15,15,15,15,
+13,15,15,15,12,15,15,14];
+boardCheck = [
+0,0,0,colorBlack | moveflagCastleQueen,colorBlack | maskCastle,colorBlack | moveflagCastleKing,0,0,
+0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,
+0,0,0,colorWhite | moveflagCastleQueen,colorWhite | maskCastle,colorWhite | moveflagCastleKing,0,0];
 var tmpCenter = [[4,2],[8,8],[4,8],[-8,8],[8,0xf],[-8,8]];
 var tmpMaterial = [[171,240],[764,848],[826,891],[1282,1373],[2526,2646],[0xffff,0xffff]];  
 var tmpPassed = [[5,7],[5,14],[31,38],[73,73],[166,166],[252,252]];  
@@ -58,14 +75,14 @@ var pieceValue = [];
 var optCenter = 0;
 
 function StrToSquare(s){
-var fl = {a:0, b:1, c:2, d:3, e:4,f:5, g:6, h:7};
-var x = fl[s.charAt(0)];
-var y = 12 - parseInt(s.charAt(1));
-return (x + 4) | (y << 4);
+var f = {a:0,b:1,c:2,d:3,e:4,f:5,g:6,h:7};
+var x = f[s.charAt(0)];
+var y = 8 - parseInt(s.charAt(1));
+return (y << 3) | x;
 }
 
-function FormatSquare(square){
-return ['a','b','c','d','e','f','g','h'][(square & 0xf) - 4] + (12 - (square >>4));
+function FormatSquare(s){
+return ['a','b','c','d','e','f','g','h'][s & 0x7] + (8 - (s >> 3));
 }
 
 function FormatMove(move){
@@ -79,12 +96,12 @@ if (move & moveflagPromotion){
 return result;
 }
 
-function GetMoveFromString(moveString) {
+
+function GetMoveFromString(s){
 var moves = GenerateAllMoves(whiteTurn);
-for (var i = 0; i < moves.length; i++){
-	if (FormatMove(moves[i]) == moveString)
+for(var i = 0; i < moves.length; i++)
+	if(FormatMove(moves[i]) == s)
 		return moves[i];
-}
 }
 
 function GetFenCore(){
@@ -94,14 +111,14 @@ for(var row = 0; row < 8;row++){
 		result += '/';
 	var empty = 0;
 	for (var col = 0; col < 8; col++) {
-		var piece = g_board[((row + 4) << 4) + col + 4];
-		if (piece == colorEmpty)
+		var piece = g_board[(row << 3) + col];
+		if (!piece)
 			empty++;
 		else {
 			if (empty != 0)
 				result += empty;
 			empty = 0;
-			var pieceChar = [' ','p','n','b','r','q','k',' '][(piece & 0x7)];
+			var pieceChar = [' ','p','n','b','r','q','k',' '][(piece & 7)];
 			result += ((piece & colorWhite) != 0) ? pieceChar.toUpperCase() : pieceChar;
 		}
 	}
@@ -120,22 +137,8 @@ return false;
 }
 
 function Initialize(){
-for(var n = 0; n < 256; n++){
-	var x = n & 0xf;
-	var y = n >> 4;
-	boardCheck[n] = 0;
-	boardCastle[n]=15;
-	if((x>3) && (y>3) && (x<12) && (y<12))
-		g_board[n] = colorEmpty;
-	else
-		g_board[n] = 0;
-}
-var cm = [[68,7],[72,3],[75,11],[180,13],[184,12],[187,14]];
-for(var n = 0;n < cm.length;n++)
-	boardCastle[cm[n][0]] = cm[n][1];
-var bm = [[71,colorBlack | moveflagCastleQueen],[72,colorBlack | maskCastle],[73,colorBlack | moveflagCastleKing],[183,colorWhite | moveflagCastleQueen],[184,colorWhite | maskCastle],[185,colorWhite | moveflagCastleKing]];
-for(var n = 0;n < cm.length;n++)
-	boardCheck[bm[n][0]] = bm[n][1];
+for(var n = 0;n < 8;n++)
+	g_destiny[n] =  new Array(64);
 for(var p = 0;p < 6;p++){
 	arrMobility[p] = [];
 	for(var ph = 2;ph < 33;ph++){
@@ -152,16 +155,24 @@ for(var p = 0;p < 6;p++){
 for(var ph = 2;ph < 33;ph++){
 	pieceValue[ph] = [];
 	for(var p = 0;p < 16;p++)
-		pieceValue[ph][p]= new Array(256);
+		pieceValue[ph][p]= new Array(64);
 }
-for(var n = 0; n < 256; n++){
-	var x = n & 0xf;
-	var y = n >> 4;
-	var nb = ((0xf-y) << 4)+x;
-	var cx = Math.min(x,0xf - x) - 3;
-	var cy = Math.min(y,0xf - y) - 3;
+for(var n = 0; n < 64; n++){
+	var x = n & 7;
+	var y = n >> 3;
+	var nb = ((7 - y) << 3) + x;
+	var cx = Math.min(x,7 - x) + 1;
+	var cy = Math.min(y,7 - y) + 1;
 	var center = (cx * cy) - 1;
-	if((x > 3) && (y > 3) && (x < 12) && (y < 12)){
+		if(y > 0 && y < 7){
+			GeneratePwnDestiny(0,n,x,y,1);//pawn black
+			GeneratePwnDestiny(1,n,x,y,-1);//pawn white
+		}
+		GenerateShrDestiny(2,n,x,y,[{x:2,y:-1},{x:2,y:1},{x:-2,y:-1},{x:-2,y:1},{x:-1,y:2},{x:1,y:2},{x:-1,y:-2},{x:1,y:-2}]);//knight
+		GenerateShrDestiny(6,n,x,y,[{x:1,y:1},{x:-1,y:-1},{x:1,y:-1},{x:-1,y:1},{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}]);//king
+		GenerateStdDestiny(3,n,x,y,[{x:1,y:1},{x:-1,y:-1},{x:1,y:-1},{x:-1,y:1}]);//bishop
+		GenerateStdDestiny(4,n,x,y,[{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}]);//rook
+		GenerateStdDestiny(5,n,x,y,[{x:1,y:1},{x:-1,y:-1},{x:1,y:-1},{x:-1,y:1},{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}]);//queen		
 		for(var ph = 2;ph < 33;ph++){
 			var f = (ph - 2) / 32;
 			for(var p = 1;p < 7;p++){
@@ -173,8 +184,8 @@ for(var n = 0; n < 256; n++){
 				v  += Math.floor((a * f + b * (1 - f)) * center);
 				pieceValue[ph][p][n] = v;
 				pieceValue[ph][p | 8][nb] = v;
-				if(p == 1 && y > 4 && y < 11){
-					var py = 10 - y;
+				if(p == 1 && y > 0 && y < 7){
+					var py = 6 - y;
 					a = tmpPassed[py][0];
 					b = tmpPassed[py][1];
 					v = Math.floor(a * f + b * (1 - f));
@@ -183,33 +194,31 @@ for(var n = 0; n < 256; n++){
 				}
 			}
 		}
-	}
 }
 }
 
 function InitializeFromFen(fen){
-for(var n = 0; n < 256; n++)
-	if(g_board[n])
-		g_board[n] = colorEmpty;
+for(var n = 0;n < 65;n++)
+	g_board[n] = 0;
 g_phase = 0;
 if(!fen)fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 var chunks = fen.split(' ');
-var row = 0;
-var col = 0;
+var x = 0;
+var y = 0;
 var pieces = chunks[0];
-for (var i = 0; i < pieces.length; i++){
+for(var i = 0;i < pieces.length;i++){
 	var c = pieces.charAt(i);
 	if (c == '/') {
-		row++;
-		col = 0;
-	}else if(c >= '0' && c <= '9') {
-		for (var j = 0; j < parseInt(c); j++)
-			col++;
+		y++;
+		x = 0;
+	}else if(c >= '0' && c <= '9'){
+		for(var j = 0;j < parseInt(c);j++)
+			x++;
 	}else{
 		g_phase++;
 		var b = c.toLowerCase();
 		var piece = b == c ? colorBlack : colorWhite;
-		var index = (row + 4) * 16 + col + 4;
+		var index = (y << 3) + x;
 		switch(b){
 			case 'p':
 				piece |= piecePawn;
@@ -231,7 +240,7 @@ for (var i = 0; i < pieces.length; i++){
 			break;
 		}
 		g_board[index] = piece;
-		col++;
+		x++;
 	}
 }
 whiteTurn = chunks[1].charAt(0) == 'w';
@@ -244,7 +253,7 @@ if (chunks[2].indexOf('k') != -1)
 	g_castleRights |= 4;
 if (chunks[2].indexOf('q') != -1)
 	g_castleRights |= 8;
-g_passing = 0;
+g_passing = 65;
 if (chunks[3].indexOf('-') == -1)
 	g_passing = StrToSquare(chunks[3]);
 g_move50 = parseInt(chunks[4]);
@@ -256,40 +265,40 @@ undoStack=[];
 InitializePieceList();
 }
 
-function InitializePieceList() {
+function InitializePieceList(){
 g_baseEval = 0;
-for (var i = 0; i < 16; i++){
-		g_pieceCount[i] = 0;
-		for (var j = 0; j < 16; j++)
-			g_pieceList[(i << 4) | j] = 0;
+for(var i = 0; i < 16; i++){
+	g_pieceCount[i] = 0;
+	for (var j = 0;j < 16;j++)
+		g_pieceList[(i << 4) | j] = 65;
 }
-for (var i = 0; i < 256; i++){
-		g_pieceIndex[i] = 0;
-		var piece = g_board[i] & 0xF;
-		if (piece){
-			g_pieceList[(piece << 4) | g_pieceCount[piece]] = i;
-			g_pieceIndex[i] = g_pieceCount[piece];
-			g_pieceCount[piece]++;
-			if (piece & colorBlack)
-				g_baseEval -= pieceValue[g_phase][piece][i];
-			else
-				g_baseEval += pieceValue[g_phase][piece][i];
-		}
+for(var i = 0;i < 64;i++){
+	g_pieceIndex[i] = 0;
+	var piece = g_board[i] & 0xF;
+	if(piece){
+		g_pieceList[(piece << 4) | g_pieceCount[piece]] = i;
+		g_pieceIndex[i] = g_pieceCount[piece];
+		g_pieceCount[piece]++;
+		if (piece & colorBlack)
+			g_baseEval -= pieceValue[g_phase][piece][i];
+		else
+			g_baseEval += pieceValue[g_phase][piece][i];
+	}
 }
 if (!whiteTurn) g_baseEval = -g_baseEval;
 }
 
 var countNA = 0;
 
-function GenerateMove(moveStack,fr,to,add,flags){
+function GenerateMove(moves,fr,to,add,flag){
 var p = g_board[to] & 7;
 if(add){
-	var m = fr | (to << 8) | flags;
+	var m = fr | (to << 8) | flag;
 	if(p)
-		moveStack[moveStack.length] = m;
+		moves[moves.length] = m;
 	else{
-		moveStack[moveStack.length] = moveStack[countNA];
-		moveStack[countNA++] = m;
+		moves[moves.length] = moves[countNA];
+		moves[countNA++] = m;
 	}
 		
 }
@@ -297,95 +306,9 @@ if((p == pieceKing) || (((boardCheck[to] & g_lastCastle) == g_lastCastle)&&(g_la
 	g_inCheck = true;
 }
 
-function GenerateAllMoves(wt){
-g_inCheck = false;	
-adjMobility = 0;
-countNA = 0;
-var ml = 0;
-colorEnemy = wt ? colorBlack : colorWhite;
-maskEE = colorEnemy | colorEmpty;
-var moves = [];
-var fr,to,del,pieceIdx;
-var color = wt ? 0 : 0x8;
-pieceIdx = (color | 1) << 4;//pawn
-fr = g_pieceList[pieceIdx++];
-while(fr){
-	ml = moves.length;
-	del = wt ? -16 : 16;
-	to = fr + del;
-	if(g_board[to] & colorEmpty){
-		GeneratePwnMoves(moves,fr,to,true)
-		if((!g_board[fr-del-del]) && ((g_board[to+del] & colorEmpty)))
-			GeneratePwnMoves(moves,fr,to+del,true);
-	}
-	if(g_board[to - 1] & colorEnemy)GeneratePwnMoves(moves,fr,to - 1,true);
-	else if((to - 1) == g_passing)GeneratePwnMoves(moves,fr,g_passing,true,moveflagPassing);
-	else if(g_board[to - 1] & colorEmpty)GeneratePwnMoves(moves,fr,to - 1,false);
-	if(g_board[to + 1] & colorEnemy)GeneratePwnMoves(moves,fr,to + 1,true);
-	else if((to + 1) == g_passing)GeneratePwnMoves(moves,fr,g_passing,true,moveflagPassing);
-	else if(g_board[to + 1] & colorEmpty)GeneratePwnMoves(moves,fr,to + 1,false);
-	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[0][g_phase][moves.length - ml];
-	if(g_inCheck)return [];
-}
-pieceIdx = (color | 2) << 4;//knight
-fr = g_pieceList[pieceIdx++];
-while(fr){
-	ml = moves.length;
-	GenerateShrMoves(moves,fr,[14,-14,18,-18,31,-31,33,-33]);
-	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[1][g_phase][moves.length - ml];
-	if(g_inCheck)return [];
-}
-pieceIdx = (color | 3) << 4;//bishop
-fr = g_pieceList[pieceIdx++];
-while (fr){
-	ml = moves.length;
-	GenerateStdMoves(moves,fr,[15,-15,17,-17]);
-	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[2][g_phase][moves.length - ml];
-	if(g_inCheck)return [];
-}
-pieceIdx = (color | 4) << 4;//rook
-fr = g_pieceList[pieceIdx++];
-while(fr){
-	ml = moves.length;
-	GenerateStdMoves(moves,fr,[1,-1,16,-16]);
-	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[3][g_phase][moves.length - ml];
-	if(g_inCheck)return [];
-}
-pieceIdx = (color | 5) << 4;//queen
-fr = g_pieceList[pieceIdx++];
-while(fr){
-	ml = moves.length;
-	GenerateStdMoves(moves,fr,[1,-1,15,-15,16,-16,17,-17]);
-	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[4][g_phase][moves.length - ml];
-	if(g_inCheck)return [];
-}
-pieceIdx = (color | 6) << 4;//king
-fr = g_pieceList[pieceIdx++];
-while(fr){
-	ml = moves.length;
-	GenerateShrMoves(moves,fr,[1,-1,15,-15,16,-16,17,-17]);
-	var cr = wt ? g_castleRights : g_castleRights >> 2;
-	if (cr & 1)
-		if(g_board[fr + 1] == colorEmpty && g_board[fr + 2] == colorEmpty)
-			GenerateMove(moves,fr,fr + 2,true,moveflagCastleKing);
-	if (cr & 2)
-		if(g_board[fr - 1] == colorEmpty && g_board[fr - 2] == colorEmpty && g_board[fr - 3] == colorEmpty)
-			GenerateMove(moves,fr,fr - 2,true,moveflagCastleQueen);
-	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[5][g_phase][moves.length - ml];
-	if(g_inCheck)return [];
-}
-return moves;
-}
-
-function GeneratePwnMoves(moves,fr,to,add,flag){
-var y = to >> 4;
-if (((y == 4) || (y == 11)) && add){
+function GenerateMovePwn(moves,fr,to,add,flag){
+var y = to >> 3;
+if (((y == 0) || (y == 7)) && add){
 	GenerateMove(moves,fr,to,add,moveflagPromoteQueen);
 	GenerateMove(moves,fr,to,add,moveflagPromoteRook);
 	GenerateMove(moves,fr,to,add,moveflagPromoteBishop);
@@ -394,23 +317,169 @@ if (((y == 4) || (y == 11)) && add){
 	GenerateMove(moves,fr,to,add,flag);
 }
 
-function GenerateShrMoves(moves,fr,dir){
-for(var n = 0;n < dir.length;n++){
-	var to = fr + dir[n];
-	if(g_board[to] & maskEE)
-		GenerateMove(moves,fr,to,true);
+function GenerateAllMoves(wt){
+g_inCheck = false;	
+adjMobility = 0;
+countNA = 0;
+var ml = 0;
+colorMy = wt ? colorWhite : colorBlack;
+colorEnemy = wt ? colorBlack : colorWhite;
+var moves = [];
+var fr,pieceIdx;
+var color = wt ? 0 : 8;
+var p = wt ? 1 : 0;
+pieceIdx = (color | 1) << 4;//pawn
+fr = g_pieceList[pieceIdx++];
+while(g_board[fr]){
+	ml = moves.length;
+	GeneratePwnMoves(moves,fr,g_destiny[p][fr]);
+	fr = g_pieceList[pieceIdx++];
+	adjMobility += arrMobility[0][g_phase][moves.length - ml];
+	if(g_inCheck)return [];
+}
+pieceIdx = (color | 2) << 4;//knight
+fr = g_pieceList[pieceIdx++];
+while(g_board[fr]){
+	ml = moves.length;
+	GenerateShrMoves(moves,fr,g_destiny[2][fr]);
+	fr = g_pieceList[pieceIdx++];
+	adjMobility += arrMobility[1][g_phase][moves.length - ml];
+	if(g_inCheck)return [];
+}
+pieceIdx = (color | 3) << 4;//bishop
+fr = g_pieceList[pieceIdx++];
+while (g_board[fr]){
+	ml = moves.length;
+	GenerateStdMoves(moves,fr,g_destiny[3][fr]);
+	fr = g_pieceList[pieceIdx++];
+	adjMobility += arrMobility[2][g_phase][moves.length - ml];
+	if(g_inCheck)return [];
+}
+pieceIdx = (color | 4) << 4;//rook
+fr = g_pieceList[pieceIdx++];
+while(g_board[fr]){
+	ml = moves.length;
+	GenerateStdMoves(moves,fr,g_destiny[4][fr]);
+	fr = g_pieceList[pieceIdx++];
+	adjMobility += arrMobility[3][g_phase][moves.length - ml];
+	if(g_inCheck)return [];
+}
+pieceIdx = (color | 5) << 4;//queen
+fr = g_pieceList[pieceIdx++];
+while(g_board[fr]){
+	ml = moves.length;
+	GenerateStdMoves(moves,fr,g_destiny[5][fr]);
+	fr = g_pieceList[pieceIdx++];
+	adjMobility += arrMobility[4][g_phase][moves.length - ml];
+	if(g_inCheck)return [];
+}
+pieceIdx = (color | 6) << 4;//king
+fr = g_pieceList[pieceIdx++];
+while(g_board[fr]){
+	ml = moves.length;
+	GenerateShrMoves(moves,fr,g_destiny[6][fr]);
+	var cr = wt ? g_castleRights : g_castleRights >> 2;
+	if (cr & 1)
+		if((!g_board[fr + 1]) && (!g_board[fr + 2]))
+			GenerateMove(moves,fr,fr + 2,true,moveflagCastleKing);
+	if (cr & 2)
+		if((!g_board[fr - 1]) && (!g_board[fr - 2]) && (!g_board[fr - 3]))
+			GenerateMove(moves,fr,fr - 2,true,moveflagCastleQueen);
+	fr = g_pieceList[pieceIdx++];
+	adjMobility += arrMobility[5][g_phase][moves.length - ml];
+	if(g_inCheck)return [];
+}
+return moves;
+}
+
+function GeneratePwnDestiny(piece,fr,x,y,dy){
+g_destiny[piece][fr] = [[],[]];	
+var to = ((y + dy) << 3) + x;
+g_destiny[piece][fr][0].push(to);
+if((y == 1) && (dy == 1))
+	g_destiny[piece][fr][0].unshift(to + 8);
+if((y == 6) && (dy == -1))
+	g_destiny[piece][fr][0].unshift(to - 8);
+if(x < 7)
+	g_destiny[piece][fr][1].push(to + 1);
+if(x > 0)
+	g_destiny[piece][fr][1].push(to - 1);
+}
+
+function GeneratePwnMoves(moves,fr,des){
+var n = des[0].length;
+while(n--){
+	var to = des[0][n];
+	if(!g_board[to])
+		GenerateMovePwn(moves,fr,to,true);
+	else
+		break;
+}
+var n = des[1].length;
+while(n--){
+	var to = des[1][n];
+	if(g_board[to] & colorEnemy)
+		GenerateMovePwn(moves,fr,to,true);
+	else
+		if(to == g_passing)
+			GenerateMove(moves,fr,to,true,moveflagPassing);
 }
 }
 
-function GenerateStdMoves(moves,fr,dir){
-for(var n=0;n<dir.length;n++){
-	var to = fr + dir[n];
-	while (g_board[to] & colorEmpty){
+function GenerateShrDestiny(piece,fr,x,y,dir){
+g_destiny[piece][fr] = [];	
+for(var n = 0;n < dir.length;n++){
+	var d = dir[n];
+	var cx = x + d.x;
+	var cy = y + d.y;
+	if(cx < 0 || cy < 0 || cx > 7 || cy > 7)continue;
+	var to = (cy << 3) + cx;
+	g_destiny[piece][fr].push(to);
+}
+}
+
+function GenerateShrMoves(moves,fr,des){
+var n = des.length;
+while(n--){
+	var to = des[n];
+	if(!(g_board[to] & colorMy))
 		GenerateMove(moves,fr,to,true);
-		to += dir[n];
+}
+}	
+
+function GenerateStdDestiny(piece,fr,x,y,dir){
+g_destiny[piece][fr] = [];	
+for(var n = 0;n < dir.length;n++){
+	var d = dir[n];
+	var cx = x + d.x;
+	var cy = y + d.y;
+	var a = [];
+	while((cx >= 0) && (cy >= 0) && (cx <= 7) && (cy <= 7)){
+		var to = (cy << 3) + cx;
+		a.unshift(to);
+		cx += d.x;
+		cy += d.y;
 	}
-	if (g_board[to] & colorEnemy)
-		GenerateMove(moves,fr,to,true);
+	g_destiny[piece][fr].push(a);
+}	
+}
+
+function GenerateStdMoves(moves,fr,des){
+var n = des.length;
+while(n--){
+	var a = des[n];
+	var d = a.length;
+	while(d--){
+		var to = a[d];
+		if(!g_board[to])
+			GenerateMove(moves,fr,to,true);
+		else{
+			if(g_board[to] & colorEnemy){
+				GenerateMove(moves,fr,to,true);
+			}
+			break;
+		}
+	}
 }
 }
 
@@ -426,37 +495,37 @@ g_lastCastle = (move & maskCastle) | (piecefr & maskColor);
 if(flags & moveflagCastleKing){
 	var rook = g_board[to + 1];
 	g_board[to - 1] = rook;
-	g_board[to + 1] = colorEmpty;
+	g_board[to + 1] = 0;
 	var rookIndex = g_pieceIndex[to + 1];
 	g_pieceIndex[to - 1] = rookIndex;
 	g_pieceList[((rook & 0xF) << 4) | rookIndex] = to - 1;
 }else if(flags & moveflagCastleQueen){
 	var rook = g_board[to - 2];
 	g_board[to + 1] = rook;
-	g_board[to - 2] = colorEmpty;
+	g_board[to - 2] = 0;
 	var rookIndex = g_pieceIndex[to - 2];
 	g_pieceIndex[to + 1] = rookIndex;
 	g_pieceList[((rook & 0xF) << 4) | rookIndex] = to + 1;
 }else if(flags & moveflagPassing){
-	capi = whiteTurn?to+16:to-16;
+	capi = whiteTurn ? to + 8 : to - 8;
 	captured = g_board[capi];
-	g_board[capi]=colorEmpty;
+	g_board[capi] = 0;
 }
 undoStack.push(new cUndo(g_passing,g_castleRights,g_move50,captured,g_baseEval,g_lastCastle));
-g_passing = 0;
+g_passing = 65;
 var capturedType = captured & 0xF;
 if (capturedType){
 	g_pieceCount[capturedType]--;
 	var lastPieceSquare = g_pieceList[(capturedType << 4) | g_pieceCount[capturedType]];
 	g_pieceIndex[lastPieceSquare] = g_pieceIndex[capi];
 	g_pieceList[(capturedType << 4) | g_pieceIndex[lastPieceSquare]] = lastPieceSquare;
-	g_pieceList[(capturedType << 4) | g_pieceCount[capturedType]] = 0;
+	g_pieceList[(capturedType << 4) | g_pieceCount[capturedType]] = 65;
 	g_baseEval += pieceValue[g_phase][capturedType][to];
 	g_move50 = 0;
 	g_phase--;
 }else if((piece & 7) == piecePawn) {
-	if (to == (fr + 32)) g_passing = (fr + 16);
-	if (to == (fr - 32)) g_passing = (fr - 16);
+	if (to == (fr + 16)) g_passing = (fr + 8);
+	if (to == (fr - 16)) g_passing = (fr - 8);
 	g_move50 = 0;
 }else
 	g_move50++;
@@ -464,21 +533,21 @@ g_pieceIndex[to] = g_pieceIndex[fr];
 g_pieceList[((piece) << 4) | g_pieceIndex[to]] = to;
 if (flags & moveflagPromotion){
 	var newPiece = piecefr & (~0x7);
-	if (flags & moveflagPromoteKnight)
-		newPiece |= pieceKnight;
-	else if (flags & moveflagPromoteQueen)
+	if (flags & moveflagPromoteQueen)
 		newPiece |= pieceQueen;
+	else if (flags & moveflagPromoteRook)
+		newPiece |= pieceRook;
 	else if (flags & moveflagPromoteBishop)
 		newPiece |= pieceBishop;
 	else
-		newPiece |= pieceRook;
+		newPiece |= pieceKnight;
 	g_board[to] = newPiece;
 	var promoteType = newPiece & 0xF;
 	g_pieceCount[piece]--;
 	var lastPawnSquare = g_pieceList[(piece << 4) | g_pieceCount[piece]];
 	g_pieceIndex[lastPawnSquare] = g_pieceIndex[to];
 	g_pieceList[(piece << 4) | g_pieceIndex[lastPawnSquare]] = lastPawnSquare;
-	g_pieceList[(piece << 4) | g_pieceCount[piece]] = 0;
+	g_pieceList[(piece << 4) | g_pieceCount[piece]] = 65;
 	g_pieceIndex[to] = g_pieceCount[promoteType];
 	g_pieceList[(promoteType << 4) | g_pieceIndex[to]] = to;
 	g_pieceCount[promoteType]++;
@@ -489,7 +558,7 @@ if (flags & moveflagPromotion){
 	g_baseEval -= pieceValue[g_phase][piece][fr];
 	g_baseEval += pieceValue[g_phase][piece][to];
 }
-g_board[fr] = colorEmpty;
+g_board[fr] = 0;
 g_castleRights &= boardCastle[fr] & boardCastle[to];
 g_baseEval = -g_baseEval;
 whiteTurn =! whiteTurn;
@@ -509,18 +578,18 @@ g_castleRights = undo.castle;
 g_move50 = undo.move50;
 g_baseEval = undo.value;
 g_lastCastle = undo.lastCastle;
-var captured=undo.captured;
+var captured = undo.captured;
 if (flags & moveflagCastleKing) {
 	var rook = g_board[to - 1];
 	g_board[to + 1] =  rook;
-	g_board[to - 1] = colorEmpty;
+	g_board[to - 1] = 0;
 	var rookIndex = g_pieceIndex[to - 1];
 	g_pieceIndex[to + 1] = rookIndex;
 	g_pieceList[((rook & 0xF) << 4) | rookIndex] = to + 1;
 }else if (flags & moveflagCastleQueen){
 	var rook = g_board[to + 1];
 	g_board[to - 2] =  rook;
-	g_board[to + 1] = colorEmpty;
+	g_board[to + 1] = 0;
 	var rookIndex = g_pieceIndex[to + 1];
 	g_pieceIndex[to - 2] = rookIndex;
 	g_pieceList[((rook & 0xF) << 4) | rookIndex] = to - 2;
@@ -534,14 +603,14 @@ if (flags & moveflagPromotion) {
 	var lastPromoteSquare = g_pieceList[(promoteType << 4) | g_pieceCount[promoteType]];
 	g_pieceIndex[lastPromoteSquare] = g_pieceIndex[to];
 	g_pieceList[(promoteType << 4) | g_pieceIndex[lastPromoteSquare]] = lastPromoteSquare;
-	g_pieceList[(promoteType << 4) | g_pieceCount[promoteType]] = 0;
+	g_pieceList[(promoteType << 4) | g_pieceCount[promoteType]] = 65;
 	g_pieceIndex[to] = g_pieceCount[pawnType];
 	g_pieceList[(pawnType << 4) | g_pieceIndex[to]] = to;
 	g_pieceCount[pawnType]++;
 }else g_board[fr] = g_board[to];
 if(flags & moveflagPassing){
-	capi = whiteTurn?to-16:to+16;
-	g_board[to] = colorEmpty;
+	capi = whiteTurn ? to - 8:to + 8;
+	g_board[to] = 0;
 }
 g_board[capi] = captured;
 g_pieceIndex[fr] = g_pieceIndex[to];
@@ -729,7 +798,7 @@ cUci.prototype.getInt = function(key, def){
 for (var i=0; i < this.tokens.length; i++)
 	if (this.tokens[i] == key)
 		if (i < this.tokens.length - 1)
-			return parseInt(this.tokens[i+1]);
+			return parseInt(this.tokens[i + 1]);
 return def;
 }
 
@@ -762,20 +831,18 @@ switch (uci.tokens[0]){
 	case 'position':
 		var fen='';
 		var arr = uci.getArr('fen','moves');
-		if (arr.lo > 0){
+		if (arr.lo > 0)
 			for (var i=arr.lo; i <= arr.hi; i++)
-				fen+=uci.tokens[i]+' ';
-		}
+				fen += uci.tokens[i]+' ';
 		InitializeFromFen(fen);
 		var arr = uci.getArr('moves','fen');
 		his = [];
 		his.push(GetFenCore());
-		if(arr.lo > 0){
+		if(arr.lo > 0)
 			for (var i=arr.lo; i <= arr.hi; i++){
 				MakeMove(GetMoveFromString(uci.tokens[i]));
 				his.push(GetFenCore());
 			}
-		}
 	break;
 	case 'setoption':
 		switch (uci.tokens[1]){
