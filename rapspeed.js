@@ -1,3 +1,4 @@
+var version = '17-10-28';
 var piecePawn = 0x01;
 var pieceKnight = 0x02;
 var pieceBishop = 0x03;
@@ -112,6 +113,7 @@ return result;
 }
 
 function IsRepetition(){
+//console.log('rep '+d);
 var fen = GetFenCore();
 for(var n = his.length - 2;n >= his.length - g_move50 + 1;n -= 2)
 	if(his[n] == fen)
@@ -301,14 +303,14 @@ function GenerateAllMoves(wt){
 g_inCheck = false;	
 adjMobility = 0;
 countNA = 0;
-var ml = 0;
 colorEnemy = wt ? colorBlack : colorWhite;
 maskEE = colorEnemy | colorEmpty;
+var ml = 0;
 var moves = [];
-var fr,to,del,pieceIdx;
+var to,del;
 var color = wt ? 0 : 0x8;
-pieceIdx = (color | 1) << 4;//pawn
-fr = g_pieceList[pieceIdx++];
+var pieceIdx = (color | 1) << 4;//pawn
+var fr = g_pieceList[pieceIdx++];
 while(fr){
 	ml = moves.length;
 	del = wt ? -16 : 16;
@@ -628,7 +630,7 @@ while(n--){
 	if(g_inCheck){
 		noCheck--;
 		osScore = -0xffff;
-	}else if((g_move50 > 99) || ((depth == 1) && IsRepetition()))
+	}else if((g_move50 > 99) || ((depth == 1) && IsRepetition(depth)))
 		osScore = 0;
 	else{
 		if(depth < depthL)
@@ -655,8 +657,9 @@ while(n--){
 			bsIn = n;
 			bsFm = alphaFm;
 			bsPv = alphaPv;
-			var nps = Math.floor((g_totalNodes / (Date.now() - g_startTime)) * 1000);
-			postMessage('info currmove ' + bsFm + ' currmovenumber ' + n + ' nodes ' + g_totalNodes + ' nps ' + nps + ' depth ' + g_depthout + ' seldepth ' + alphaDe + ' score ' + g_scoreFm + ' pv ' + bsPv);
+			var time = Date.now() - g_startTime;
+			var nps = Math.floor((g_totalNodes / time) * 1000);
+			postMessage('info currmove ' + bsFm + ' currmovenumber ' + n + ' nodes ' + g_totalNodes + ' time ' + time + ' nps ' + nps + ' depth ' + g_depthout + ' seldepth ' + alphaDe + ' score ' + g_scoreFm + ' pv ' + bsPv);
 		}
 	}
 	if(alpha >= beta)break;
@@ -686,10 +689,11 @@ do{
 	}
 	if((os.depth < g_depthout++) || (os.score < - 0xf000) || (os.score > 0xf000))break;
 }while((!depth || (g_depthout < depth)) && !g_stop && m1);
-var nps = Math.floor((g_totalNodes / (Date.now() - g_startTime)) * 1000);
+var time = Date.now() - g_startTime;
+var nps = Math.floor((g_totalNodes / time) * 1000);
 var ponder = bsPv.split(' ');
 var pm = ponder.length > 1 ? ' ponder ' + ponder[1] : '';
-postMessage('info nodes ' + g_totalNodes + ' nps ' + nps);
+postMessage('info nodes ' + g_totalNodes + ' time ' + time + ' nps ' + nps);
 postMessage('bestmove ' + bsFm + pm);
 return true;
 }
@@ -791,7 +795,7 @@ switch (uci.tokens[0]){
 		close();
 	break;
 	case 'uci':
-		postMessage('id name rapspeed');
+		postMessage('id name Rapboard ' + version);
 		postMessage('id author Thibor Raven');
 		postMessage('option name optCenter type spin default ' + optCenter + ' min -4 max 4');
 		postMessage('uciok');
