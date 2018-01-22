@@ -1,4 +1,4 @@
-var version = '17-10-28';
+var version = '18-01-01';
 var piecePawn = 0x01;
 var pieceKnight = 0x02;
 var pieceBishop = 0x03;
@@ -17,9 +17,12 @@ var moveflagPromoteBishop = 0x40 << 16;
 var moveflagPromoteKnight = 0x80 << 16;
 var maskCastle = moveflagCastleKing | moveflagCastleQueen;
 var maskColor = colorBlack | colorWhite;
+var g_countMove = 0;
+var g_captured = 0;
 var g_hash = 0;
 var g_baseEval = 0;
 var g_castleRights = 0xf; //&1 = wk, &2 = wq, &4 = bk, &8 = bq
+var g_depth = 0;
 var g_passing = 65;
 var g_move50 = 0;
 var g_moveNumber = 0;
@@ -29,6 +32,7 @@ var g_inCheck = false;
 var g_depthout = 0;
 var g_timeout = 0;
 var g_nodeout = 0;
+var g_pv = '';
 var g_stop = false;
 var g_scoreFm = '';
 var g_lastCastle = 0;
@@ -87,7 +91,7 @@ var pieceValue = [];
 var optCenter = 0;
 
 function RAND_32(){
-return (Math.floor((Math.random()*255)+1) << 23) | (Math.floor((Math.random()*255)+1) << 16) | (Math.floor((Math.random()*255)+1) <<  8) | Math.floor((Math.random()*255)+1);
+return (Math.floor(Math.random() * 0x10000) << 16) | Math.floor(Math.random() * 0x10000);
 }
 
 function StrToSquare(s){
@@ -121,7 +125,7 @@ for(var i = 0; i < moves.length; i++)
 }
 
 function IsRepetition(){
-for(var n = undoIndex - 3;n >= undoIndex - g_move50;n -= 2)
+for(var n = undoIndex - 4;n >= undoIndex - g_move50;n -= 2)
 	if(undoStack[n].hash == g_hash)
 		return true;
 return false;
@@ -195,7 +199,6 @@ for(var n = 0; n < 64; n++){
 }
 
 function InitializeFromFen(fen){
-undoIndex = 0;
 movesIndex = 0;
 for(var n = 0;n < 65;n++)
 	g_board[n] = 0;
@@ -260,7 +263,9 @@ g_moveNumber = parseInt(chunks[5]);
 if(g_moveNumber)g_moveNumber--;
 g_moveNumber *= 2;
 if(!whiteTurn)g_moveNumber++;
-undoStack=[];
+undoStack = [];
+for(undoIndex = 0;undoIndex  < g_moveNumber;undoIndex++)
+	undoStack[undoIndex] = new cUndo();
 InitializePieceList();
 }
 
@@ -290,19 +295,21 @@ if (!whiteTurn) g_baseEval = -g_baseEval;
 var countNA = 0;
 
 function GenerateMove(moves,fr,to,add,flag){
+g_countMove++;
 var p = g_board[to] & 7;
-if(add){
+if((p == pieceKing) || ((g_lastCastle & maskCastle) && ((boardCheck[to] & g_lastCastle) == g_lastCastle)))
+	g_inCheck = true;
+else if(add){
 	var m = fr | (to << 8) | flag;
+	if(flag == moveflagPassing)p = 1;
+	//moves[p][moves[p].length] = m;
 	if(p)
 		moves[moves.length] = m;
 	else{
 		moves[moves.length] = moves[countNA];
-		moves[countNA++] = m;
+		moves[countNA++] = m;	
 	}
-		
 }
-if((p == pieceKing) || (((boardCheck[to] & g_lastCastle) == g_lastCastle)&&(g_lastCastle & maskCastle)))
-	g_inCheck = true;
 }
 
 function GenerateMovePwn(moves,fr,to,add,flag){
@@ -316,6 +323,7 @@ if(boardPromotion[to] && add){
 }
 
 function GenerateAllMoves(wt,attack){
+g_countMove = 0;
 g_inCheck = false;	
 adjMobility = 0;
 countNA = 0;
@@ -323,72 +331,72 @@ colorMy = wt ? colorWhite : colorBlack;
 colorEnemy = wt ? colorBlack : colorWhite;
 var ml = 0;
 var moves = [];
+//var moves = [[],[],[],[],[],[]];
 var color = wt ? 0 : 8;
 var p = wt ? 1 : 0;
 var pieceIdx = (color | 1) << 4;//pawn
 var fr = g_pieceList[pieceIdx++];
 while(g_board[fr]){
-	ml = moves.length;
+	ml = g_countMove;
 	GeneratePwnMoves(moves,attack,fr,g_destiny[p][fr]);
 	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[0][g_phase][moves.length - ml];
+	adjMobility += arrMobility[0][g_phase][g_countMove - ml];
 	if(g_inCheck)return [];
 }
 pieceIdx = (color | 2) << 4;//knight
 fr = g_pieceList[pieceIdx++];
 while(g_board[fr]){
-	ml = moves.length;
+	ml = g_countMove;
 	GenerateShrMoves(moves,attack,fr,g_destiny[2][fr]);
 	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[1][g_phase][moves.length - ml];
+	adjMobility += arrMobility[1][g_phase][g_countMove - ml];
 	if(g_inCheck)return [];
 }
 pieceIdx = (color | 3) << 4;//bishop
 fr = g_pieceList[pieceIdx++];
 while (g_board[fr]){
-	ml = moves.length;
+	ml = g_countMove;
 	GenerateStdMoves(moves,attack,fr,g_destiny[3][fr]);
 	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[2][g_phase][moves.length - ml];
+	adjMobility += arrMobility[2][g_phase][g_countMove - ml];
 	if(g_inCheck)return [];
 }
 pieceIdx = (color | 4) << 4;//rook
 fr = g_pieceList[pieceIdx++];
 while(g_board[fr]){
-	ml = moves.length;
+	ml = g_countMove;
 	GenerateStdMoves(moves,attack,fr,g_destiny[4][fr]);
 	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[3][g_phase][moves.length - ml];
+	adjMobility += arrMobility[3][g_phase][g_countMove - ml];
 	if(g_inCheck)return [];
 }
 pieceIdx = (color | 5) << 4;//queen
 fr = g_pieceList[pieceIdx++];
 while(g_board[fr]){
-	ml = moves.length;
+	ml = g_countMove;
 	GenerateStdMoves(moves,attack,fr,g_destiny[5][fr]);
 	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[4][g_phase][moves.length - ml];
+	adjMobility += arrMobility[4][g_phase][g_countMove - ml];
 	if(g_inCheck)return [];
 }
 pieceIdx = (color | 6) << 4;//king
 fr = g_pieceList[pieceIdx++];
 while(g_board[fr]){
-	ml = moves.length;
+	ml = g_countMove;
 	GenerateShrMoves(moves,attack,fr,g_destiny[6][fr]);
-	if(!attack){
-		var cr = wt ? g_castleRights : g_castleRights >> 2;
-		if (cr & 1)
-			if((!g_board[fr + 1]) && (!g_board[fr + 2]))
-				GenerateMove(moves,fr,fr + 2,true,moveflagCastleKing);
-		if (cr & 2)
-			if((!g_board[fr - 1]) && (!g_board[fr - 2]) && (!g_board[fr - 3]))
-				GenerateMove(moves,fr,fr - 2,true,moveflagCastleQueen);
-	}
+	var cr = wt ? g_castleRights : g_castleRights >> 2;
+	if (cr & 1)
+		if((!g_board[fr + 1]) && (!g_board[fr + 2]))
+			GenerateMove(moves,fr,fr + 2,!attack,moveflagCastleKing);
+	if (cr & 2)
+		if((!g_board[fr - 1]) && (!g_board[fr - 2]) && (!g_board[fr - 3]))
+			GenerateMove(moves,fr,fr - 2,!attack,moveflagCastleQueen);
 	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[5][g_phase][moves.length - ml];
+	adjMobility += arrMobility[5][g_phase][g_countMove - ml];
 	if(g_inCheck)return [];
 }
 return moves;
+//return moves[5].concat(moves[4],moves[3],moves[2],moves[1],moves[0]);
 }
 
 function GeneratePwnDestiny(piece,fr,x,y,dy){
@@ -406,15 +414,13 @@ if(x > 0)
 }
 
 function GeneratePwnMoves(moves,attack,fr,des){
-if(!attack){
-	var n = des[0].length;
-	while(n--){
+var n = des[0].length;
+while(n--){
 		var to = des[0][n];
 		if(!g_board[to])
-			GenerateMovePwn(moves,fr,to,true);
+			GenerateMovePwn(moves,fr,to,!attack);
 		else
 			break;
-	}
 }
 var n = des[1].length;
 while(n--){
@@ -441,18 +447,12 @@ for(var n = 0;n < dir.length;n++){
 
 function GenerateShrMoves(moves,attack,fr,des){
 var n = des.length;
-if(attack){
-	while(n--){
+while(n--){
 		var to = des[n];
 		if(g_board[to] & colorEnemy)
 			GenerateMove(moves,fr,to,true);
-	}
-}else{
-	while(n--){
-		var to = des[n];
-		if(!(g_board[to] & colorMy))
-			GenerateMove(moves,fr,to,true);
-	}
+		else if(!(g_board[to] & colorMy))
+			GenerateMove(moves,fr,to,!attack);
 }
 }	
 
@@ -480,10 +480,9 @@ while(n--){
 	var d = a.length;
 	while(d--){
 		var to = a[d];
-		if(!g_board[to]){
-			if(!attack)
-				GenerateMove(moves,fr,to,true);
-		}else{
+		if(!g_board[to])
+				GenerateMove(moves,fr,to,!attack);
+		else{
 			if(g_board[to] & colorEnemy){
 				GenerateMove(moves,fr,to,true);
 			}
@@ -494,21 +493,14 @@ while(n--){
 }
 
 function MakeMove(move){
-var undo = new Object();
-undo.passing = g_passing;
-undo.castle = g_castleRights;
-undo.move50 = g_move50;
-undo.value = g_baseEval;
 var fr = move & 0xFF;
 var to = (move >> 8) & 0xFF;
 var flags = move & 0xFF0000;
 var piecefr = g_board[fr];
 var piece = piecefr & 0xf;
-var captured = g_board[to];
 var capi = to;
-g_hash ^= g_hashBoard[fr][piece];
+g_captured = g_board[to];
 g_lastCastle = (move & maskCastle) | (piecefr & maskColor);
-undo.lastCastle = g_lastCastle;
 if(flags & moveflagCastleKing){
 	var rook = g_board[to + 1];
 	g_board[to - 1] = rook;
@@ -525,12 +517,13 @@ if(flags & moveflagCastleKing){
 	g_pieceList[((rook & 0xF) << 4) | rookIndex] = to + 1;
 }else if(flags & moveflagPassing){
 	capi = whiteTurn ? to + 8 : to - 8;
-	captured = g_board[capi];
+	g_captured = g_board[capi];
 	g_board[capi] = 0;
 }
-undo.captured = captured;
+undoStack[undoIndex++] = new cUndo();
+g_hash ^= g_hashBoard[fr][piece];
 g_passing = 65;
-var capturedType = captured & 0xF;
+var capturedType = g_captured & 0xF;
 if (capturedType){
 	g_pieceCount[capturedType]--;
 	var lastPieceSquare = g_pieceList[(capturedType << 4) | g_pieceCount[capturedType]];
@@ -577,8 +570,6 @@ if(flags & moveflagPromotion){
 	g_baseEval += pieceValue[g_phase][piece][to];
 	g_hash ^= g_hashBoard[to][piece];
 }
-undo.hash = g_hash;
-undoStack[undoIndex++] = undo;
 g_board[fr] = 0;
 g_castleRights &= boardCastle[fr] & boardCastle[to];
 g_baseEval = -g_baseEval;
@@ -663,38 +654,30 @@ if(alpha >= beta)
 	alpha = score;
 else while(n--){
 	if(!(++g_totalNodes & 0x1ffff))	
-		g_stop = ((depthL > 1) && ((g_timeout && (Date.now() - g_startTime > g_timeout)) ||  (g_nodeout && (g_totalNodes > g_nodeout))));
-	if(g_stop){
-		alpha = -0xffff;
-		break;
-	}
+		g_stop = ((g_timeout && (Date.now() - g_startTime > g_timeout)) ||  (g_nodeout && (g_totalNodes > g_nodeout)));
 	var cm = mu[n];
-	var to = (cm >> 8) & 0xFF;
-	var toPie = g_board[to] & 0x7;
-	if(!toPie)break;
 	MakeMove(cm);
 	var me = GenerateAllMoves(whiteTurn,true);
-	var osPv = '';
-	var osDe = 0;
 	var osScore = -g_baseEval + myMobility - adjMobility;
+	g_depth = 0;
+	g_pv = '';
 	if(g_inCheck)
 		osScore = -0xffff;
-	else if(depth < depthL){
-		var os = Quiesce(me,depth + 1,depthL,-beta,-alpha,-osScore);
-		osScore = -os.score;
-		osPv = ' ' + os.pv;
-		osDe = os.depth;
-	}
+	else if(depth < depthL)
+		osScore = -Quiesce(me,depth + 1,depthL,-beta,-alpha,-osScore);
 	UnmakeMove(cm);
-	if((!g_stop)&&(alpha < osScore)){
+	if(g_stop)return -0xffff;
+	if(alpha < osScore){
 		alpha = osScore;
-		alphaDe = osDe + 1;
+		alphaDe = g_depth + 1;
 		alphaFm = FormatMove(cm);
-		alphaPv = alphaFm + osPv;
+		alphaPv = alphaFm + ' ' + g_pv;
 	}
 	if(alpha >= beta)break;
 }	
-return {score:alpha,depth:alphaDe,pv:alphaPv};
+g_depth = alphaDe;
+g_pv = alphaPv;
+return alpha;
 }
 
 function GetScore(mu,depth,depthL,alpha,beta){
@@ -708,33 +691,29 @@ var myMobility = adjMobility;
 while(n--){
 	if(!(++g_totalNodes & 0x1fff))	
 		g_stop = ((depthL > 1) && ((g_timeout && (Date.now() - g_startTime > g_timeout)) ||  (g_nodeout && (g_totalNodes > g_nodeout))));
-	if(g_stop)return {score:-0xffff};
 	var cm = mu[n];
 	MakeMove(cm);
-	var me = GenerateAllMoves(whiteTurn,false);
-	var osPv = '';
-	var osDe = 0;
+	var me = GenerateAllMoves(whiteTurn,depth == depthL);
+	g_depth = 0;
+	g_pv = '';
 	var osScore = -g_baseEval + myMobility - adjMobility;
 	if(g_inCheck){
 		noCheck--;
 		osScore = -0xffff;
 	}else if((g_move50 > 99) || IsRepetition())
 		osScore = 0;
-	else{
+	else
 		if(depth < depthL)
-			var os = GetScore(me,depth + 1,depthL,-beta,-alpha);
+			osScore = -GetScore(me,depth + 1,depthL,-beta,-alpha);
 		else
-			var os =  Quiesce(me,1,depthL,-beta,-alpha,-osScore);
-		osScore = -os.score;
-		osPv = ' ' + os.pv;
-		osDe = os.depth;
-	}
+			osScore =  -Quiesce(me,1,depthL,-beta,-alpha,-osScore);
 	UnmakeMove(cm);
-	if((!g_stop) && (alpha < osScore)){
+	if(g_stop)return -0xffff;
+	if(alpha < osScore){
 		alpha = osScore;
 		alphaFm = FormatMove(cm);
-		alphaPv = alphaFm + osPv;
-		alphaDe = osDe + 1;
+		alphaPv = alphaFm + ' ' + g_pv;
+		alphaDe = g_depth + 1;
 		if(depth == 1){
 			if(osScore > 0xf000)
 				g_scoreFm = 'mate ' + ((0xffff - osScore) >> 1);
@@ -752,11 +731,13 @@ while(n--){
 	}
 	if(alpha >= beta)break;
 }
-if(!noCheck && !g_stop){
+if(!noCheck){
 	GenerateAllMoves(!whiteTurn,true);
 	if(!g_inCheck)alpha = 0;else alpha = -0xffff + depth;
 }
-return {score:alpha,depth:alphaDe,pv:alphaPv};
+g_depth = alphaDe;
+g_pv = alphaPv;
+return alpha;
 }
 
 function Search(depth,time,nodes){
@@ -775,7 +756,7 @@ do{
 		mu[m1] = mu[bsIn];
 		mu[bsIn] = m;
 	}
-	if((os.depth < g_depthout++) || (os.score < - 0xf000) || (os.score > 0xf000))break;
+	if((g_depth < g_depthout++) || (os < - 0xf000) || (os > 0xf000))break;
 }while((!depth || (g_depthout < depth)) && !g_stop && m1);
 var time = Date.now() - g_startTime;
 var nps = Math.floor((g_totalNodes / time) * 1000);
@@ -784,6 +765,16 @@ var pm = ponder.length > 1 ? ' ponder ' + ponder[1] : '';
 postMessage('info nodes ' + g_totalNodes + ' time ' + time + ' nps ' + nps);
 postMessage('bestmove ' + bsFm + pm);
 return true;
+}
+
+var cUndo = function(){
+this.captured = g_captured;
+this.passing = g_passing;
+this.castle = g_castleRights;
+this.move50 = g_move50;
+this.value = g_baseEval;
+this.hash = g_hash;	
+this.lastCastle = g_lastCastle;
 }
 
 var cUci=function(){

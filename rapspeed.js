@@ -113,7 +113,6 @@ return result;
 }
 
 function IsRepetition(){
-//console.log('rep '+d);
 var fen = GetFenCore();
 for(var n = his.length - 2;n >= his.length - g_move50 + 1;n -= 2)
 	if(his[n] == fen)
@@ -630,7 +629,7 @@ while(n--){
 	if(g_inCheck){
 		noCheck--;
 		osScore = -0xffff;
-	}else if((g_move50 > 99) || ((depth == 1) && IsRepetition(depth)))
+	}else if((g_move50 > 99) || ((depth == 1) && IsRepetition()))
 		osScore = 0;
 	else{
 		if(depth < depthL)
