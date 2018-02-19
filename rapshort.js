@@ -176,10 +176,7 @@ for (var i = 0; i < 256; i++){
 			g_pieceList[(piece << 4) | g_pieceCount[piece]] = i;
 			g_pieceIndex[i] = g_pieceCount[piece];
 			g_pieceCount[piece]++;
-			if (piece & colorBlack)
-				g_baseEval -= arrMaterial[piece & 7];
-			else
-				g_baseEval += arrMaterial[piece & 7];
+			g_baseEval = piece & colorBlack ? -arrMaterial[piece & 7] : arrMaterial[piece & 7];
 		}
 }
 if (!whiteTurn) g_baseEval = -g_baseEval;
