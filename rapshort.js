@@ -35,7 +35,6 @@ var g_nodeout = 0;
 var g_stop = false;
 var g_scoreFm = '';
 var g_lastCastle = 0;
-var g_phase = 32;
 var undoStack = [];
 var g_board = new Array(256);
 var boardCheck = new Array(256);
@@ -45,20 +44,7 @@ var g_pieceList = new Array(2 * 8 * 16);
 var g_pieceCount = new Array(2 * 8);
 var whiteTurn = true;
 var colorEnemy = colorBlack;
-var tmpCenter = [[4,2],[8,8],[4,8],[-8,8],[8,0xf],[-8,8]];
-var tmpMaterial = [[171,240],[764,848],[826,891],[1282,1373],[2526,2646],[0xffff,0xffff]];  
-var tmpPassed = [[5,7],[5,14],[31,38],[73,73],[166,166],[252,252]];  
-var tmpMobility = [
-[[-4,-4],[0,0],[1,1],[2,2],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4],[4,4]],//pawn
-[[-75,-76],[-57,-54],[-9,-28],[-2,-10],[6,5],[14,12],[22, 26],[29,29],[36, 29]],//knight
-[[-48,-59],[-20,-23],[16, -3],[26, 13],[38, 24],[51, 42],[55, 54],[63, 57],[63, 65],[68, 73],[81, 78],[81, 86],[91, 88],[98, 97]],//bishop
-[[-58,-76],[-27,-18],[-15, 28],[-10, 55],[-5, 69],[-2, 82],[9,112],[16,118],[30,132],[29,142],[32,155],[38,165],[46,166],[48,169],[58,171]],//rook
-[[-39,-36],[-21,-15],[3,  8],[3, 18],[14, 34],[22, 54],[28, 61],[41, 73],[43, 79],[48, 92],[56, 94],[60,104],[60,113],[66,120],[67,123],[70,126],[71,133],[73,136],[79,140],[88,143],[88,148],[99,166],[102,170],[102,175],[106,184],[109,191],[113,206],[116,212]],//queen
-[[90,9],[80,8],[70,7],[60,6],[50,5],[40,4],[30,3],[20,2],[10,1]]];//king
-var arrMobility = [];
-var adjMobility = 0;
-var pieceValue = [];
-var optCenter = 0;
+var arrMaterial = [0,100,300,300,500,800,0xffff];
 
 function StrToSquare(s){
 var fl = {a:0, b:1, c:2, d:3, e:4,f:5, g:6, h:7};
@@ -107,62 +93,12 @@ for(var n = 0;n < cm.length;n++)
 var bm = [[71,colorBlack | moveflagCastleQueen],[72,colorBlack | maskCastle],[73,colorBlack | moveflagCastleKing],[183,colorWhite | moveflagCastleQueen],[184,colorWhite | maskCastle],[185,colorWhite | moveflagCastleKing]];
 for(var n = 0;n < cm.length;n++)
 	boardCheck[bm[n][0]] = bm[n][1];
-for(var p = 0;p < 6;p++){
-	arrMobility[p] = [];
-	for(var ph = 2;ph < 33;ph++){
-		var f = (ph - 2) / 32;
-		arrMobility[p][ph] = [];
-		for(var m = 0;m < tmpMobility[p].length;m++){
-			var a = tmpMobility[p][m][0];
-			var b = tmpMobility[p][m][1];
-			var v = Math.floor(a * f + b * (1 - f));
-			arrMobility[p][ph][m] = v;
-		}
-	}
-}
-for(var ph = 2;ph < 33;ph++){
-	pieceValue[ph] = [];
-	for(var p = 0;p < 16;p++)
-		pieceValue[ph][p]= new Array(256);
-}
-for(var n = 0; n < 256; n++){
-	var x = n & 0xf;
-	var y = n >> 4;
-	var nb = ((0xf-y) << 4)+x;
-	var cx = Math.min(x,0xf - x) - 3;
-	var cy = Math.min(y,0xf - y) - 3;
-	var center = (cx * cy) - 1;
-	if((x > 3) && (y > 3) && (x < 12) && (y < 12)){
-		for(var ph = 2;ph < 33;ph++){
-			var f = (ph - 2) / 32;
-			for(var p = 1;p < 7;p++){
-				var v = Math.floor(tmpMaterial[p - 1][0] * f + tmpMaterial[p - 1][1] * (1 - f));
-				var a = tmpCenter[p - 1][0];
-				var b = tmpCenter[p - 1][1];
-				a = optCenter > 0 ? a << optCenter : a >> optCenter;
-				b = optCenter > 0 ? b << optCenter : b >> optCenter;
-				v  += Math.floor((a * f + b * (1 - f)) * center);
-				pieceValue[ph][p][n] = v;
-				pieceValue[ph][p | 8][nb] = v;
-				if(p == 1 && y > 4 && y < 11){
-					var py = 10 - y;
-					a = tmpPassed[py][0];
-					b = tmpPassed[py][1];
-					v = Math.floor(a * f + b * (1 - f));
-					pieceValue[ph][p][n] += v;
-					pieceValue[ph][p | 8][nb] += v;
-				}
-			}
-		}
-	}
-}
 }
 
 function InitializeFromFen(fen){
 for(var n = 0; n < 256; n++)
 	if(g_board[n])
 		g_board[n] = colorEmpty;
-g_phase = 0;
 if(!fen)fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 var chunks = fen.split(' ');
 var row = 0;
@@ -177,7 +113,6 @@ for (var i = 0; i < pieces.length; i++){
 		for (var j = 0; j < parseInt(c); j++)
 			col++;
 	}else{
-		g_phase++;
 		var b = c.toLowerCase();
 		var piece = b == c ? colorBlack : colorWhite;
 		var index = (row + 4) * 16 + col + 4;
@@ -242,9 +177,9 @@ for (var i = 0; i < 256; i++){
 			g_pieceIndex[i] = g_pieceCount[piece];
 			g_pieceCount[piece]++;
 			if (piece & colorBlack)
-				g_baseEval -= pieceValue[g_phase][piece][i];
+				g_baseEval -= arrMaterial[piece & 7];
 			else
-				g_baseEval += pieceValue[g_phase][piece][i];
+				g_baseEval += arrMaterial[piece & 7];
 		}
 }
 if (!whiteTurn) g_baseEval = -g_baseEval;
@@ -259,7 +194,6 @@ if(((g_board[to] & 7) == pieceKing) || (((boardCheck[to] & g_lastCastle) == g_la
 
 function GenerateAllMoves(wt){
 g_inCheck = false;	
-adjMobility = 0;
 colorEnemy = wt ? colorBlack : colorWhite;
 maskEE = colorEnemy | colorEmpty;
 var ml = 0;
@@ -284,7 +218,6 @@ while(fr){
 	else if((to + 1) == g_passing)GeneratePwnMoves(moves,fr,g_passing,true,moveflagPassing);
 	else if(g_board[to + 1] & colorEmpty)GeneratePwnMoves(moves,fr,to + 1,false);
 	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[0][g_phase][moves.length - ml];
 	if(g_inCheck)return [];
 }
 pieceIdx = (color | 2) << 4;//knight
@@ -293,7 +226,6 @@ while(fr){
 	ml = moves.length;
 	GenerateShrMoves(moves,fr,[14,-14,18,-18,31,-31,33,-33]);
 	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[1][g_phase][moves.length - ml];
 	if(g_inCheck)return [];
 }
 pieceIdx = (color | 3) << 4;//bishop
@@ -302,7 +234,6 @@ while (fr){
 	ml = moves.length;
 	GenerateStdMoves(moves,fr,[15,-15,17,-17]);
 	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[2][g_phase][moves.length - ml];
 	if(g_inCheck)return [];
 }
 pieceIdx = (color | 4) << 4;//rook
@@ -311,7 +242,6 @@ while(fr){
 	ml = moves.length;
 	GenerateStdMoves(moves,fr,[1,-1,16,-16]);
 	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[3][g_phase][moves.length - ml];
 	if(g_inCheck)return [];
 }
 pieceIdx = (color | 5) << 4;//queen
@@ -320,7 +250,6 @@ while(fr){
 	ml = moves.length;
 	GenerateStdMoves(moves,fr,[1,-1,15,-15,16,-16,17,-17]);
 	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[4][g_phase][moves.length - ml];
 	if(g_inCheck)return [];
 }
 pieceIdx = (color | 6) << 4;//king
@@ -336,7 +265,6 @@ while(fr){
 		if(g_board[fr - 1] == colorEmpty && g_board[fr - 2] == colorEmpty && g_board[fr - 3] == colorEmpty)
 			GenerateMove(moves,fr,fr - 2,true,moveflagCastleQueen);
 	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[5][g_phase][moves.length - ml];
 	if(g_inCheck)return [];
 }
 return moves;
@@ -410,9 +338,8 @@ if (capturedType){
 	g_pieceIndex[lastPieceSquare] = g_pieceIndex[capi];
 	g_pieceList[(capturedType << 4) | g_pieceIndex[lastPieceSquare]] = lastPieceSquare;
 	g_pieceList[(capturedType << 4) | g_pieceCount[capturedType]] = 0;
-	g_baseEval += pieceValue[g_phase][capturedType][to];
+	g_baseEval += arrMaterial[g_captured & 7];
 	g_move50 = 0;
-	g_phase--;
 }else if((piece & 7) == piecePawn) {
 	if (to == (fr + 32)) g_passing = (fr + 16);
 	if (to == (fr - 32)) g_passing = (fr - 16);
@@ -441,13 +368,10 @@ if (flags & moveflagPromotion){
 	g_pieceIndex[to] = g_pieceCount[promoteType];
 	g_pieceList[(promoteType << 4) | g_pieceIndex[to]] = to;
 	g_pieceCount[promoteType]++;
-	g_baseEval -= pieceValue[g_phase][piece][fr];
-	g_baseEval += pieceValue[g_phase][promoteType][to];
-}else{
+	g_baseEval -= arrMaterial[piece & 7];
+	g_baseEval += arrMaterial[newPiece & 7];
+}else
 	g_board[to] = g_board[fr];
-	g_baseEval -= pieceValue[g_phase][piece][fr];
-	g_baseEval += pieceValue[g_phase][piece][to];
-}
 g_board[fr] = colorEmpty;
 g_castleRights &= boardCastle[fr] & boardCastle[to];
 g_baseEval = -g_baseEval;
@@ -510,7 +434,6 @@ if (captureType){
 	g_pieceIndex[capi] = g_pieceCount[captureType];
 	g_pieceList[(captureType << 4) | g_pieceCount[captureType]] = capi;
 	g_pieceCount[captureType]++;
-	g_phase++;
 }
 whiteTurn =! whiteTurn;
 g_moveNumber--;
@@ -522,12 +445,12 @@ var bsPv = '';
 
 function GetScore(mu,enMobility,depth,depthL,alpha,beta){
 var check = 0;
-var n = mu.length;
+var myMobility = mu.length;
+var n = myMobility;
 var myMoves = n;
 var alphaDe = 0;
 var alphaFm = '';
 var alphaPv = '';
-var myMobility = adjMobility;
 while(n--){
 	if(!(++g_totalNodes & 0x1fff))	
 		g_stop = ((depthL > 1) && ((g_timeout && (Date.now() - g_startTime > g_timeout)) ||  (g_nodeout && (g_totalNodes > g_nodeout))));
@@ -583,7 +506,7 @@ return alpha;
 
 function Search(depth,time,nodes){
 var mu = GenerateAllMoves(whiteTurn);
-var myMobility = adjMobility;
+var myMobility = mu.length;
 var m1 = mu.length - 1;
 g_stop = false;
 g_totalNodes = 0;
