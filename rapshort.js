@@ -19,6 +19,7 @@ var moveflagPromoteKnight = 0x80 << 16;
 var maskCastle = moveflagCastleKing | moveflagCastleQueen;
 var maskColor = colorBlack | colorWhite;
 var g_baseEval = 0;
+var g_captured = 0;
 var g_castleRights = 0xf; //&1 = wk, &2 = wq, &4 = bk, &8 = bq
 var g_depth = 0;
 var g_passing = 0;
@@ -44,7 +45,6 @@ var g_pieceList = new Array(2 * 8 * 16);
 var g_pieceCount = new Array(2 * 8);
 var whiteTurn = true;
 var colorEnemy = colorBlack;
-var his = [];
 var tmpCenter = [[4,2],[8,8],[4,8],[-8,8],[8,0xf],[-8,8]];
 var tmpMaterial = [[171,240],[764,848],[826,891],[1282,1373],[2526,2646],[0xffff,0xffff]];  
 var tmpPassed = [[5,7],[5,14],[31,38],[73,73],[166,166],[252,252]];  
@@ -88,38 +88,6 @@ for (var i = 0; i < moves.length; i++){
 	if (FormatMove(moves[i]) == moveString)
 		return moves[i];
 }
-}
-
-function GetFenCore(){
-var result = '';
-for(var row = 0; row < 8;row++){
-	if (row != 0)
-		result += '/';
-	var empty = 0;
-	for (var col = 0; col < 8; col++) {
-		var piece = g_board[((row + 4) << 4) + col + 4];
-		if (piece == colorEmpty)
-			empty++;
-		else {
-			if (empty != 0)
-				result += empty;
-			empty = 0;
-			var pieceChar = [' ','p','n','b','r','q','k',' '][(piece & 0x7)];
-			result += ((piece & colorWhite) != 0) ? pieceChar.toUpperCase() : pieceChar;
-		}
-	}
-	if (empty != 0)
-		result += empty;
-}
-return result;
-}
-
-function IsRepetition(){
-var fen = GetFenCore();
-for(var n = his.length - 2;n >= his.length - g_move50 + 1;n -= 2)
-	if(his[n] == fen)
-		return true;
-return false;
 }
 
 function Initialize(){
@@ -282,28 +250,16 @@ for (var i = 0; i < 256; i++){
 if (!whiteTurn) g_baseEval = -g_baseEval;
 }
 
-var countNA = 0;
-
 function GenerateMove(moveStack,fr,to,add,flags){
-var p = g_board[to] & 7;
-if(add){
-	var m = fr | (to << 8) | flags;
-	if(p)
-		moveStack[moveStack.length] = m;
-	else{
-		moveStack[moveStack.length] = moveStack[countNA];
-		moveStack[countNA++] = m;
-	}
-		
-}
-if((p == pieceKing) || (((boardCheck[to] & g_lastCastle) == g_lastCastle)&&(g_lastCastle & maskCastle)))
+if(add)
+	moveStack[moveStack.length] = fr | (to << 8) | flags;
+if(((g_board[to] & 7) == pieceKing) || (((boardCheck[to] & g_lastCastle) == g_lastCastle)&&(g_lastCastle & maskCastle)))
 	g_inCheck = true;
 }
 
 function GenerateAllMoves(wt){
 g_inCheck = false;	
 adjMobility = 0;
-countNA = 0;
 colorEnemy = wt ? colorBlack : colorWhite;
 maskEE = colorEnemy | colorEmpty;
 var ml = 0;
@@ -423,8 +379,8 @@ var to = (move >> 8) & 0xFF;
 var flags = move & 0xFF0000;
 var piecefr = g_board[fr];
 var piece = piecefr & 0xf;
-var captured = g_board[to];
 var capi = to;
+g_captured = g_board[to];
 g_lastCastle = (move & maskCastle) | (piecefr & maskColor);
 if(flags & moveflagCastleKing){
 	var rook = g_board[to + 1];
@@ -442,12 +398,12 @@ if(flags & moveflagCastleKing){
 	g_pieceList[((rook & 0xF) << 4) | rookIndex] = to + 1;
 }else if(flags & moveflagPassing){
 	capi = whiteTurn?to+16:to-16;
-	captured = g_board[capi];
+	g_captured = g_board[capi];
 	g_board[capi]=colorEmpty;
 }
-undoStack.push(new cUndo(g_passing,g_castleRights,g_move50,captured,g_baseEval,g_lastCastle));
+undoStack.push(new cUndo());
 g_passing = 0;
-var capturedType = captured & 0xF;
+var capturedType = g_captured & 0xF;
 if (capturedType){
 	g_pieceCount[capturedType]--;
 	var lastPieceSquare = g_pieceList[(capturedType << 4) | g_pieceCount[capturedType]];
@@ -582,7 +538,7 @@ while(n--){
 	g_depth = 0;
 	g_pv = '';
 	var osScore = -g_baseEval + myMobility - enMobility;
-	if((g_move50 > 99) || ((depth == 1) && IsRepetition()))
+	if(g_move50 > 99)
 		osScore = 0;
 	else if((depth < depthL) || toPie){
 		var me = GenerateAllMoves(whiteTurn);
@@ -594,7 +550,7 @@ while(n--){
 	}
 	UnmakeMove(cm);
 	if(g_stop)return -0xffff;
-	if((!g_stop) && (alpha < osScore)){
+	if(alpha < osScore){
 		alpha = osScore;
 		alphaFm = FormatMove(cm);
 		alphaPv = alphaFm + ' ' + g_pv;
@@ -616,7 +572,7 @@ while(n--){
 	}
 	if(alpha >= beta)break;
 }
-if(!myMoves && !g_stop){
+if(!myMoves){
 	GenerateAllMoves(!whiteTurn);
 	if(!g_inCheck)alpha = 0;else alpha = -0xffff + depth;
 }
@@ -653,14 +609,13 @@ postMessage('bestmove ' + bsFm + pm);
 return true;
 }
 
-
-var cUndo=function(passing,castle,move50,captured,value,lastCastle){
-this.passing = passing;
-this.castle = castle;
-this.move50 = move50;
-this.captured = captured;
-this.value = value;
-this.lastCastle = lastCastle;
+var cUndo = function(){
+this.captured = g_captured;
+this.passing = g_passing;
+this.castle = g_castleRights;
+this.move50 = g_move50;
+this.value = g_baseEval;
+this.lastCastle = g_lastCastle;
 }
 
 Initialize();
@@ -674,15 +629,11 @@ onmessage = function(e){
 (/^(.*?)\n?$/).exec(e.data);
 var msg = RegExp.$1;
 if(msg == 'uci'){
-		postMessage('id name Rapspeed ' + version);
-		postMessage('id author Thibor Raven');
-		postMessage('option name optCenter type spin default ' + optCenter + ' min -4 max 4');
-		postMessage('uciok');
+	postMessage('id name Rapshort ' + version);
+	postMessage('id author Thibor Raven');
+	postMessage('uciok');
 }else if (msg == 'isready') postMessage('readyok');
-else if(msg == 'stop')g_stop = true;
-else if(msg == 'quit')close();
-else if(re = (/setoption(?: optCenter (\d+))+/).exec(msg))optCenter = re[1] | 0;
-else if((/^position (?:(startpos)|fen (.*?))\s*(?:moves\s*(.*))?$/).exec(msg)){
+else if ((/^position (?:(startpos)|fen (.*?))\s*(?:moves\s*(.*))?$/).exec(msg)){
 	InitializeFromFen((RegExp.$1 == 'startpos') ? '' : RegExp.$2);
 	if(RegExp.$3){
 		var m =  (RegExp.$3).split(' ');
