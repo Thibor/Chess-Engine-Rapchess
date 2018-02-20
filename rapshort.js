@@ -20,7 +20,7 @@ var maskCastle = moveflagCastleKing | moveflagCastleQueen;
 var maskColor = colorBlack | colorWhite;
 var g_baseEval = 0;
 var g_captured = 0;
-var g_castleRights = 0xf; //&1 = wk, &2 = wq, &4 = bk, &8 = bq
+var g_castleRights = 0xf;
 var g_depth = 0;
 var g_passing = 0;
 var g_move50 = 0;
@@ -36,14 +36,14 @@ var g_stop = false;
 var g_scoreFm = '';
 var g_lastCastle = 0;
 var undoStack = [];
+var arrField = [];
 var g_board = new Array(256);
 var boardCheck = new Array(256);
 var boardCastle = new Array(256);
-var g_pieceIndex = new Array(256);
-var g_pieceList = new Array(2 * 8 * 16);
-var g_pieceCount = new Array(2 * 8);
-var whiteTurn = true;
-var colorEnemy = colorBlack;
+var whiteTurn = 1;
+var usColor = 0;
+var enColor = 0;
+var eeColor = 0;
 var arrMaterial = [0,100,300,300,500,800,0xffff];
 
 function StrToSquare(s){
@@ -77,15 +77,18 @@ for (var i = 0; i < moves.length; i++){
 }
 
 function Initialize(){
+arrField = [];
 for(var n = 0; n < 256; n++){
 	var x = n & 0xf;
 	var y = n >> 4;
 	boardCheck[n] = 0;
 	boardCastle[n]=15;
-	if((x>3) && (y>3) && (x<12) && (y<12))
+	if((x>3) && (y>3) && (x<12) && (y<12)){
 		g_board[n] = colorEmpty;
-	else
+		arrField.push(n);
+	}else
 		g_board[n] = 0;
+		
 }
 var cm = [[68,7],[72,3],[75,11],[180,13],[184,12],[187,14]];
 for(var n = 0;n < cm.length;n++)
@@ -96,9 +99,9 @@ for(var n = 0;n < cm.length;n++)
 }
 
 function InitializeFromFen(fen){
-for(var n = 0; n < 256; n++)
-	if(g_board[n])
-		g_board[n] = colorEmpty;
+g_baseEval = 0;
+for(var n = 0;n < 64;n++)
+	g_board[arrField[n]] = colorEmpty;
 if(!fen)fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 var chunks = fen.split(' ');
 var row = 0;
@@ -114,7 +117,8 @@ for (var i = 0; i < pieces.length; i++){
 			col++;
 	}else{
 		var b = c.toLowerCase();
-		var piece = b == c ? colorBlack : colorWhite;
+		var isWhite = b != c;
+		var piece = isWhite ? colorWhite : colorBlack;
 		var index = (row + 4) * 16 + col + 4;
 		switch(b){
 			case 'p':
@@ -137,10 +141,12 @@ for (var i = 0; i < pieces.length; i++){
 			break;
 		}
 		g_board[index] = piece;
+		var m = arrMaterial[piece & 7];
+		g_baseEval = isWhite ? m : -m;
 		col++;
 	}
 }
-whiteTurn = chunks[1].charAt(0) == 'w';
+whiteTurn = chunks[1].charAt(0) == 'w' | 0;
 g_castleRights = 0;
 if (chunks[2].indexOf('K') != -1)
 	g_castleRights |= 1;
@@ -157,29 +163,11 @@ g_move50 = parseInt(chunks[4]);
 g_moveNumber = parseInt(chunks[5]);
 if(g_moveNumber)g_moveNumber--;
 g_moveNumber *= 2;
-if(!whiteTurn)g_moveNumber++;
+if(!whiteTurn){
+	g_moveNumber++;
+	g_baseEval = -g_baseEval;
+}
 undoStack=[];
-InitializePieceList();
-}
-
-function InitializePieceList() {
-g_baseEval = 0;
-for (var i = 0; i < 16; i++){
-		g_pieceCount[i] = 0;
-		for (var j = 0; j < 16; j++)
-			g_pieceList[(i << 4) | j] = 0;
-}
-for (var i = 0; i < 256; i++){
-		g_pieceIndex[i] = 0;
-		var piece = g_board[i] & 0xF;
-		if (piece){
-			g_pieceList[(piece << 4) | g_pieceCount[piece]] = i;
-			g_pieceIndex[i] = g_pieceCount[piece];
-			g_pieceCount[piece]++;
-			g_baseEval = piece & colorBlack ? -arrMaterial[piece & 7] : arrMaterial[piece & 7];
-		}
-}
-if (!whiteTurn) g_baseEval = -g_baseEval;
 }
 
 function GenerateMove(moveStack,fr,to,add,flags){
@@ -191,78 +179,55 @@ if(((g_board[to] & 7) == pieceKing) || (((boardCheck[to] & g_lastCastle) == g_la
 
 function GenerateAllMoves(wt){
 g_inCheck = false;	
-colorEnemy = wt ? colorBlack : colorWhite;
-maskEE = colorEnemy | colorEmpty;
-var ml = 0;
+usColor = wt ?  colorWhite : colorBlack;
+enColor = wt ? colorBlack : colorWhite;
+eeColor = enColor | colorEmpty;
 var moves = [];
 var to,del;
 var color = wt ? 0 : 0x8;
-var pieceIdx = (color | 1) << 4;//pawn
-var fr = g_pieceList[pieceIdx++];
-while(fr){
-	ml = moves.length;
-	del = wt ? -16 : 16;
-	to = fr + del;
-	if(g_board[to] & colorEmpty){
-		GeneratePwnMoves(moves,fr,to,true)
-		if((!g_board[fr-del-del]) && ((g_board[to+del] & colorEmpty)))
-			GeneratePwnMoves(moves,fr,to+del,true);
+for(var n = 0;n < 64;n++){
+	var fr = arrField[n];
+	var f = g_board[fr];
+	if(f & usColor)f &= 7;else continue;
+	switch(f){
+		case 1:
+		del = wt ? -16 : 16;
+		to = fr + del;
+		if(g_board[to] & colorEmpty){
+			GeneratePwnMoves(moves,fr,to,true)
+			if((!g_board[fr-del-del]) && ((g_board[to+del] & colorEmpty)))
+				GeneratePwnMoves(moves,fr,to+del,true);
+		}
+		if(g_board[to - 1] & enColor)GeneratePwnMoves(moves,fr,to - 1,true);
+		else if((to - 1) == g_passing)GeneratePwnMoves(moves,fr,g_passing,true,moveflagPassing);
+		else if(g_board[to - 1] & colorEmpty)GeneratePwnMoves(moves,fr,to - 1,false);
+		if(g_board[to + 1] & enColor)GeneratePwnMoves(moves,fr,to + 1,true);
+		else if((to + 1) == g_passing)GeneratePwnMoves(moves,fr,g_passing,true,moveflagPassing);
+		else if(g_board[to + 1] & colorEmpty)GeneratePwnMoves(moves,fr,to + 1,false);
+		break;
+		case 2:
+		GenerateShrMoves(moves,fr,[14,-14,18,-18,31,-31,33,-33]);
+		break;
+		case 3:
+		GenerateStdMoves(moves,fr,[15,-15,17,-17]);
+		break;
+		case 4:
+		GenerateStdMoves(moves,fr,[1,-1,16,-16]);
+		break;
+		case 5:
+		GenerateStdMoves(moves,fr,[1,-1,15,-15,16,-16,17,-17]);
+		break;
+		case 6:
+		GenerateShrMoves(moves,fr,[1,-1,15,-15,16,-16,17,-17]);
+		var cr = wt ? g_castleRights : g_castleRights >> 2;
+		if (cr & 1)
+			if(g_board[fr + 1] == colorEmpty && g_board[fr + 2] == colorEmpty)
+				GenerateMove(moves,fr,fr + 2,true,moveflagCastleKing);
+		if (cr & 2)
+			if(g_board[fr - 1] == colorEmpty && g_board[fr - 2] == colorEmpty && g_board[fr - 3] == colorEmpty)
+				GenerateMove(moves,fr,fr - 2,true,moveflagCastleQueen);
+		break;
 	}
-	if(g_board[to - 1] & colorEnemy)GeneratePwnMoves(moves,fr,to - 1,true);
-	else if((to - 1) == g_passing)GeneratePwnMoves(moves,fr,g_passing,true,moveflagPassing);
-	else if(g_board[to - 1] & colorEmpty)GeneratePwnMoves(moves,fr,to - 1,false);
-	if(g_board[to + 1] & colorEnemy)GeneratePwnMoves(moves,fr,to + 1,true);
-	else if((to + 1) == g_passing)GeneratePwnMoves(moves,fr,g_passing,true,moveflagPassing);
-	else if(g_board[to + 1] & colorEmpty)GeneratePwnMoves(moves,fr,to + 1,false);
-	fr = g_pieceList[pieceIdx++];
-	if(g_inCheck)return [];
-}
-pieceIdx = (color | 2) << 4;//knight
-fr = g_pieceList[pieceIdx++];
-while(fr){
-	ml = moves.length;
-	GenerateShrMoves(moves,fr,[14,-14,18,-18,31,-31,33,-33]);
-	fr = g_pieceList[pieceIdx++];
-	if(g_inCheck)return [];
-}
-pieceIdx = (color | 3) << 4;//bishop
-fr = g_pieceList[pieceIdx++];
-while (fr){
-	ml = moves.length;
-	GenerateStdMoves(moves,fr,[15,-15,17,-17]);
-	fr = g_pieceList[pieceIdx++];
-	if(g_inCheck)return [];
-}
-pieceIdx = (color | 4) << 4;//rook
-fr = g_pieceList[pieceIdx++];
-while(fr){
-	ml = moves.length;
-	GenerateStdMoves(moves,fr,[1,-1,16,-16]);
-	fr = g_pieceList[pieceIdx++];
-	if(g_inCheck)return [];
-}
-pieceIdx = (color | 5) << 4;//queen
-fr = g_pieceList[pieceIdx++];
-while(fr){
-	ml = moves.length;
-	GenerateStdMoves(moves,fr,[1,-1,15,-15,16,-16,17,-17]);
-	fr = g_pieceList[pieceIdx++];
-	if(g_inCheck)return [];
-}
-pieceIdx = (color | 6) << 4;//king
-fr = g_pieceList[pieceIdx++];
-while(fr){
-	ml = moves.length;
-	GenerateShrMoves(moves,fr,[1,-1,15,-15,16,-16,17,-17]);
-	var cr = wt ? g_castleRights : g_castleRights >> 2;
-	if (cr & 1)
-		if(g_board[fr + 1] == colorEmpty && g_board[fr + 2] == colorEmpty)
-			GenerateMove(moves,fr,fr + 2,true,moveflagCastleKing);
-	if (cr & 2)
-		if(g_board[fr - 1] == colorEmpty && g_board[fr - 2] == colorEmpty && g_board[fr - 3] == colorEmpty)
-			GenerateMove(moves,fr,fr - 2,true,moveflagCastleQueen);
-	fr = g_pieceList[pieceIdx++];
-	if(g_inCheck)return [];
 }
 return moves;
 }
@@ -281,7 +246,7 @@ if (((y == 4) || (y == 11)) && add){
 function GenerateShrMoves(moves,fr,dir){
 for(var n = 0;n < dir.length;n++){
 	var to = fr + dir[n];
-	if(g_board[to] & maskEE)
+	if(g_board[to] & eeColor)
 		GenerateMove(moves,fr,to,true);
 }
 }
@@ -293,7 +258,7 @@ for(var n=0;n<dir.length;n++){
 		GenerateMove(moves,fr,to,true);
 		to += dir[n];
 	}
-	if (g_board[to] & colorEnemy)
+	if (g_board[to] & enColor)
 		GenerateMove(moves,fr,to,true);
 }
 }
@@ -308,19 +273,11 @@ var capi = to;
 g_captured = g_board[to];
 g_lastCastle = (move & maskCastle) | (piecefr & maskColor);
 if(flags & moveflagCastleKing){
-	var rook = g_board[to + 1];
-	g_board[to - 1] = rook;
+	g_board[to - 1] =  g_board[to + 1];
 	g_board[to + 1] = colorEmpty;
-	var rookIndex = g_pieceIndex[to + 1];
-	g_pieceIndex[to - 1] = rookIndex;
-	g_pieceList[((rook & 0xF) << 4) | rookIndex] = to - 1;
 }else if(flags & moveflagCastleQueen){
-	var rook = g_board[to - 2];
-	g_board[to + 1] = rook;
+	g_board[to + 1] = rook = g_board[to - 2];
 	g_board[to - 2] = colorEmpty;
-	var rookIndex = g_pieceIndex[to - 2];
-	g_pieceIndex[to + 1] = rookIndex;
-	g_pieceList[((rook & 0xF) << 4) | rookIndex] = to + 1;
 }else if(flags & moveflagPassing){
 	capi = whiteTurn?to+16:to-16;
 	g_captured = g_board[capi];
@@ -329,22 +286,15 @@ if(flags & moveflagCastleKing){
 undoStack.push(new cUndo());
 g_passing = 0;
 var capturedType = g_captured & 0xF;
-if (capturedType){
-	g_pieceCount[capturedType]--;
-	var lastPieceSquare = g_pieceList[(capturedType << 4) | g_pieceCount[capturedType]];
-	g_pieceIndex[lastPieceSquare] = g_pieceIndex[capi];
-	g_pieceList[(capturedType << 4) | g_pieceIndex[lastPieceSquare]] = lastPieceSquare;
-	g_pieceList[(capturedType << 4) | g_pieceCount[capturedType]] = 0;
+if(capturedType){
 	g_baseEval += arrMaterial[g_captured & 7];
 	g_move50 = 0;
 }else if((piece & 7) == piecePawn) {
-	if (to == (fr + 32)) g_passing = (fr + 16);
-	if (to == (fr - 32)) g_passing = (fr - 16);
+	if(to == (fr + 32))g_passing = (fr + 16);
+	if(to == (fr - 32))g_passing = (fr - 16);
 	g_move50 = 0;
 }else
 	g_move50++;
-g_pieceIndex[to] = g_pieceIndex[fr];
-g_pieceList[((piece) << 4) | g_pieceIndex[to]] = to;
 if (flags & moveflagPromotion){
 	var newPiece = piecefr & (~0x7);
 	if (flags & moveflagPromoteKnight)
@@ -356,15 +306,6 @@ if (flags & moveflagPromotion){
 	else
 		newPiece |= pieceRook;
 	g_board[to] = newPiece;
-	var promoteType = newPiece & 0xF;
-	g_pieceCount[piece]--;
-	var lastPawnSquare = g_pieceList[(piece << 4) | g_pieceCount[piece]];
-	g_pieceIndex[lastPawnSquare] = g_pieceIndex[to];
-	g_pieceList[(piece << 4) | g_pieceIndex[lastPawnSquare]] = lastPawnSquare;
-	g_pieceList[(piece << 4) | g_pieceCount[piece]] = 0;
-	g_pieceIndex[to] = g_pieceCount[promoteType];
-	g_pieceList[(promoteType << 4) | g_pieceIndex[to]] = to;
-	g_pieceCount[promoteType]++;
 	g_baseEval -= arrMaterial[piece & 7];
 	g_baseEval += arrMaterial[newPiece & 7];
 }else
@@ -372,7 +313,7 @@ if (flags & moveflagPromotion){
 g_board[fr] = colorEmpty;
 g_castleRights &= boardCastle[fr] & boardCastle[to];
 g_baseEval = -g_baseEval;
-whiteTurn =! whiteTurn;
+whiteTurn ^= 1;
 g_moveNumber++;
 }
 
@@ -391,48 +332,22 @@ g_baseEval = undo.value;
 g_lastCastle = undo.lastCastle;
 var captured=undo.captured;
 if (flags & moveflagCastleKing) {
-	var rook = g_board[to - 1];
-	g_board[to + 1] =  rook;
+	g_board[to + 1] = g_board[to - 1];
 	g_board[to - 1] = colorEmpty;
-	var rookIndex = g_pieceIndex[to - 1];
-	g_pieceIndex[to + 1] = rookIndex;
-	g_pieceList[((rook & 0xF) << 4) | rookIndex] = to + 1;
 }else if (flags & moveflagCastleQueen){
-	var rook = g_board[to + 1];
-	g_board[to - 2] =  rook;
+	g_board[to - 2] = g_board[to + 1];
 	g_board[to + 1] = colorEmpty;
-	var rookIndex = g_pieceIndex[to + 1];
-	g_pieceIndex[to - 2] = rookIndex;
-	g_pieceList[((rook & 0xF) << 4) | rookIndex] = to - 2;
 }
 if (flags & moveflagPromotion) {
 	piece = (g_board[to] & (~0x7)) | piecePawn;
 	g_board[fr] = piece;
-	var pawnType = g_board[fr] & 0xF;
-	var promoteType = g_board[to] & 0xF;
-	g_pieceCount[promoteType]--;
-	var lastPromoteSquare = g_pieceList[(promoteType << 4) | g_pieceCount[promoteType]];
-	g_pieceIndex[lastPromoteSquare] = g_pieceIndex[to];
-	g_pieceList[(promoteType << 4) | g_pieceIndex[lastPromoteSquare]] = lastPromoteSquare;
-	g_pieceList[(promoteType << 4) | g_pieceCount[promoteType]] = 0;
-	g_pieceIndex[to] = g_pieceCount[pawnType];
-	g_pieceList[(pawnType << 4) | g_pieceIndex[to]] = to;
-	g_pieceCount[pawnType]++;
 }else g_board[fr] = g_board[to];
 if(flags & moveflagPassing){
-	capi = whiteTurn?to-16:to+16;
+	capi = whiteTurn?to - 16:to + 16;
 	g_board[to] = colorEmpty;
 }
 g_board[capi] = captured;
-g_pieceIndex[fr] = g_pieceIndex[to];
-g_pieceList[((piece & 0xF) << 4) | g_pieceIndex[fr]] = fr;
-var captureType = captured & 0xF;
-if (captureType){
-	g_pieceIndex[capi] = g_pieceCount[captureType];
-	g_pieceList[(captureType << 4) | g_pieceCount[captureType]] = capi;
-	g_pieceCount[captureType]++;
-}
-whiteTurn =! whiteTurn;
+whiteTurn ^= 1;
 g_moveNumber--;
 }
 
@@ -493,7 +408,7 @@ while(n--){
 	if(alpha >= beta)break;
 }
 if(!myMoves){
-	GenerateAllMoves(!whiteTurn);
+	GenerateAllMoves(whiteTurn ^ 1);
 	if(!g_inCheck)alpha = 0;else alpha = -0xffff + depth;
 }
 g_depth = alphaDe;
