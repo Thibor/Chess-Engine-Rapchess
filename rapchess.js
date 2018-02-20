@@ -211,7 +211,6 @@ for(var n = 0; n < 64; n++){
 }
 
 function InitializeFromFen(fen){
-postMessage('info fe ' + fen);
 movesIndex = 0;
 for(var n = 0;n < 65;n++)
 	g_board[n] = 0;
@@ -258,7 +257,7 @@ for(var i = 0;i < pieces.length;i++){
 		x++;
 	}
 }
-whiteTurn = (chunks[1].charAt(0) == 'w')|0;
+whiteTurn = (chunks[1].charAt(0) == 'w') | 0;
 g_castleRights = 0;
 if (chunks[2].indexOf('K') != -1)
 	g_castleRights |= 1;
@@ -296,10 +295,8 @@ for(var i = 0;i < 64;i++){
 		g_pieceList[(piece << 4) | g_pieceCount[piece]] = i;
 		g_pieceIndex[i] = g_pieceCount[piece];
 		g_pieceCount[piece]++;
-		if (piece & colorBlack)
-			g_baseEval -= pieceValue[g_phase][piece][i];
-		else
-			g_baseEval += pieceValue[g_phase][piece][i];
+		var v = pieceValue[g_phase][piece][i];
+		g_baseEval += piece & colorBlack ? -v : v;
 	}
 }
 if (!whiteTurn) g_baseEval = -g_baseEval;

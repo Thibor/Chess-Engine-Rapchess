@@ -273,10 +273,8 @@ for (var i = 0; i < 256; i++){
 			g_pieceList[(piece << 4) | g_pieceCount[piece]] = i;
 			g_pieceIndex[i] = g_pieceCount[piece];
 			g_pieceCount[piece]++;
-			if (piece & colorBlack)
-				g_baseEval -= pieceValue[g_phase][piece][i];
-			else
-				g_baseEval += pieceValue[g_phase][piece][i];
+			var v = pieceValue[g_phase][piece][i];
+			g_baseEval += piece & colorBlack ? -v : v;
 		}
 }
 if (!whiteTurn) g_baseEval = -g_baseEval;

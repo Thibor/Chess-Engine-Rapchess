@@ -142,7 +142,7 @@ for (var i = 0; i < pieces.length; i++){
 		}
 		g_board[index] = piece;
 		var m = arrMaterial[piece & 7];
-		g_baseEval = isWhite ? m : -m;
+		g_baseEval += isWhite ? m : -m;
 		col++;
 	}
 }
@@ -279,7 +279,7 @@ if(flags & moveflagCastleKing){
 	g_board[to + 1] = rook = g_board[to - 2];
 	g_board[to - 2] = colorEmpty;
 }else if(flags & moveflagPassing){
-	capi = whiteTurn?to+16:to-16;
+	capi = whiteTurn ? to + 16 : to - 16;
 	g_captured = g_board[capi];
 	g_board[capi]=colorEmpty;
 }
@@ -343,7 +343,7 @@ if (flags & moveflagPromotion) {
 	g_board[fr] = piece;
 }else g_board[fr] = g_board[to];
 if(flags & moveflagPassing){
-	capi = whiteTurn?to - 16:to + 16;
+	capi = whiteTurn ? to - 16 : to + 16;
 	g_board[to] = colorEmpty;
 }
 g_board[capi] = captured;
