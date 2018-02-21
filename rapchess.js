@@ -845,7 +845,6 @@ else if((/^position (?:(startpos)|fen (.*?))\s*(?:moves\s*(.*))?$/).exec(msg)){
 		var m =  (RegExp.$3).split(' ');
 		for(var i = 0;i < m.length;i++)
 			MakeMove(GetMoveFromString(m[i]));
-		console.log(g_move50);
 	}
 }else if((/^go /).exec(msg)){
 	g_startTime = Date.now();

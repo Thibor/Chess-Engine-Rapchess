@@ -79,23 +79,17 @@ for (var i = 0; i < moves.length; i++){
 function Initialize(){
 arrField = [];
 for(var n = 0; n < 256; n++){
-	var x = n & 0xf;
-	var y = n >> 4;
 	boardCheck[n] = 0;
 	boardCastle[n]=15;
-	if((x>3) && (y>3) && (x<12) && (y<12)){
-		g_board[n] = colorEmpty;
-		arrField.push(n);
-	}else
-		g_board[n] = 0;
-		
+	g_board[n] = 0;
 }
-var cm = [[68,7],[72,3],[75,11],[180,13],[184,12],[187,14]];
-for(var n = 0;n < cm.length;n++)
-	boardCastle[cm[n][0]] = cm[n][1];
-var bm = [[71,colorBlack | moveflagCastleQueen],[72,colorBlack | maskCastle],[73,colorBlack | moveflagCastleKing],[183,colorWhite | moveflagCastleQueen],[184,colorWhite | maskCastle],[185,colorWhite | moveflagCastleKing]];
-for(var n = 0;n < cm.length;n++)
-	boardCheck[bm[n][0]] = bm[n][1];
+for(var y = 0;y < 8; y++)
+	for(var x = 0;x < 8;x++)
+		arrField.push((y + 4) * 16 + x + 4);
+for(var n = 0;n < 6;n++){
+	boardCastle[[68,72,75,180,184,187][n]] = [7,3,11,13,12,14][n];
+	boardCheck[[71,72,73,183,184,185][n]] = [colorBlack | moveflagCastleQueen,colorBlack | maskCastle,colorBlack | moveflagCastleKing,colorWhite | moveflagCastleQueen,colorWhite | maskCastle,colorWhite | moveflagCastleKing][n];
+}
 }
 
 function InitializeFromFen(fen){

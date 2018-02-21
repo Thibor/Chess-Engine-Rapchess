@@ -19,7 +19,7 @@ var moveflagPromoteKnight = 0x80 << 16;
 var maskCastle = moveflagCastleKing | moveflagCastleQueen;
 var maskColor = colorBlack | colorWhite;
 var g_baseEval = 0;
-var g_castleRights = 0xf; //&1 = wk, &2 = wq, &4 = bk, &8 = bq
+var g_castleRights = 0xf;
 var g_depth = 0;
 var g_passing = 0;
 var g_move50 = 0;
@@ -36,12 +36,13 @@ var g_scoreFm = '';
 var g_lastCastle = 0;
 var g_phase = 32;
 var undoStack = [];
+var arrField = [];
 var g_board = new Array(256);
 var boardCheck = new Array(256);
 var boardCastle = new Array(256);
 var g_pieceIndex = new Array(256);
-var g_pieceList = new Array(2 * 8 * 16);
-var g_pieceCount = new Array(2 * 8);
+var g_pieceList = new Array(256);
+var g_pieceCount = new Array(16);
 var whiteTurn = true;
 var colorEnemy = colorBlack;
 var his = [];
@@ -123,32 +124,29 @@ return false;
 }
 
 function Initialize(){
+arrField = [];	
 for(var n = 0; n < 256; n++){
 	var x = n & 0xf;
 	var y = n >> 4;
 	boardCheck[n] = 0;
 	boardCastle[n]=15;
-	if((x>3) && (y>3) && (x<12) && (y<12))
-		g_board[n] = colorEmpty;
-	else
-		g_board[n] = 0;
+	g_board[n] = 0;
 }
-var cm = [[68,7],[72,3],[75,11],[180,13],[184,12],[187,14]];
-for(var n = 0;n < cm.length;n++)
-	boardCastle[cm[n][0]] = cm[n][1];
-var bm = [[71,colorBlack | moveflagCastleQueen],[72,colorBlack | maskCastle],[73,colorBlack | moveflagCastleKing],[183,colorWhite | moveflagCastleQueen],[184,colorWhite | maskCastle],[185,colorWhite | moveflagCastleKing]];
-for(var n = 0;n < cm.length;n++)
-	boardCheck[bm[n][0]] = bm[n][1];
-for(var p = 0;p < 6;p++){
-	arrMobility[p] = [];
+for(var y = 0;y < 8; y++)
+	for(var x = 0;x < 8;x++)
+		arrField.push((y + 4) * 16 + x + 4);
+for(var n = 0;n < 6;n++){
+	boardCastle[[68,72,75,180,184,187][n]] = [7,3,11,13,12,14][n];
+	boardCheck[[71,72,73,183,184,185][n]] = [colorBlack | moveflagCastleQueen,colorBlack | maskCastle,colorBlack | moveflagCastleKing,colorWhite | moveflagCastleQueen,colorWhite | maskCastle,colorWhite | moveflagCastleKing][n];
+	arrMobility[n] = [];
 	for(var ph = 2;ph < 33;ph++){
 		var f = (ph - 2) / 32;
-		arrMobility[p][ph] = [];
-		for(var m = 0;m < tmpMobility[p].length;m++){
-			var a = tmpMobility[p][m][0];
-			var b = tmpMobility[p][m][1];
+		arrMobility[n][ph] = [];
+		for(var m = 0;m < tmpMobility[n].length;m++){
+			var a = tmpMobility[n][m][0];
+			var b = tmpMobility[n][m][1];
 			var v = Math.floor(a * f + b * (1 - f));
-			arrMobility[p][ph][m] = v;
+			arrMobility[n][ph][m] = v;
 		}
 	}
 }
@@ -191,9 +189,9 @@ for(var n = 0; n < 256; n++){
 }
 
 function InitializeFromFen(fen){
-for(var n = 0; n < 256; n++)
-	if(g_board[n])
-		g_board[n] = colorEmpty;
+g_baseEval = 0;
+for(var n = 0;n < 64;n++)
+	g_board[arrField[n]] = colorEmpty;
 g_phase = 0;
 if(!fen)fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 var chunks = fen.split(' ');
@@ -257,16 +255,16 @@ g_moveNumber *= 2;
 if(!whiteTurn)g_moveNumber++;
 undoStack=[];
 InitializePieceList();
+if (!whiteTurn) g_baseEval = -g_baseEval;
 }
 
-function InitializePieceList() {
-g_baseEval = 0;
-for (var i = 0; i < 16; i++){
+function InitializePieceList(){
+for(var i = 0; i < 16; i++){
 		g_pieceCount[i] = 0;
 		for (var j = 0; j < 16; j++)
 			g_pieceList[(i << 4) | j] = 0;
 }
-for (var i = 0; i < 256; i++){
+for(var i = 0; i < 256; i++){
 		g_pieceIndex[i] = 0;
 		var piece = g_board[i] & 0xF;
 		if (piece){
@@ -277,7 +275,6 @@ for (var i = 0; i < 256; i++){
 			g_baseEval += piece & colorBlack ? -v : v;
 		}
 }
-if (!whiteTurn) g_baseEval = -g_baseEval;
 }
 
 var countNA = 0;
