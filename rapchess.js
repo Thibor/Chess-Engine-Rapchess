@@ -276,7 +276,7 @@ if(g_moveNumber)g_moveNumber--;
 g_moveNumber *= 2;
 if(!whiteTurn)g_moveNumber++;
 undoStack = [];
-for(undoIndex = 0;undoIndex  < g_moveNumber;undoIndex++)
+for(undoIndex = 0;undoIndex  <= g_moveNumber;undoIndex++)
 	undoStack[undoIndex] = new cUndo();
 InitializePieceList();
 }
@@ -773,7 +773,6 @@ return alpha;
 }
 
 function Search(depth,time,nodes){
-postMessage('info nodeeeeeeeeeee ' + nodes);
 var mu = GenerateAllMoves(whiteTurn,false);
 var m1 = mu.length - 1;
 var insufficient = adjInsufficient;
@@ -846,6 +845,7 @@ else if((/^position (?:(startpos)|fen (.*?))\s*(?:moves\s*(.*))?$/).exec(msg)){
 		var m =  (RegExp.$3).split(' ');
 		for(var i = 0;i < m.length;i++)
 			MakeMove(GetMoveFromString(m[i]));
+		console.log(g_move50);
 	}
 }else if((/^go /).exec(msg)){
 	g_startTime = Date.now();
