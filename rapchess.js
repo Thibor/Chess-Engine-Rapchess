@@ -734,11 +734,10 @@ while(n--){
 		osScore = -0xffff;
 	}else if((g_move50 > 99) || IsRepetition() || (myInsufficient && (adjInsufficient || osScore > 0)))
 		osScore = 0;
+	else if(depth < depthL)
+		osScore = -GetScore(me,depth + 1,depthL,-beta,-alpha);
 	else
-		if(depth < depthL)
-			osScore = -GetScore(me,depth + 1,depthL,-beta,-alpha);
-		else
-			osScore =  -Quiesce(me,1,depthL,-beta,-alpha,-osScore);
+		osScore =  -Quiesce(me,1,depthL,-beta,-alpha,-osScore);
 	UnmakeMove(cm);
 	if(g_stop)return -0xffff;
 	if(alpha < osScore){

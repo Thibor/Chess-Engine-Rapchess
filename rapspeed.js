@@ -579,7 +579,7 @@ while(n--){
 	var osScore = -g_baseEval + myMobility - enMobility;
 	if((g_move50 > 99) || ((depth == 1) && IsRepetition()))
 		osScore = 0;
-	else if((depth < depthL) || toPie){
+	else if((depth <= depthL) || toPie){
 		var me = GenerateAllMoves(whiteTurn);
 		if(g_inCheck){
 			myMoves--;

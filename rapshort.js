@@ -167,7 +167,7 @@ undoStack=[];
 function GenerateMove(moveStack,fr,to,add,flags){
 if(add)
 	moveStack[moveStack.length] = fr | (to << 8) | flags;
-if(((g_board[to] & 7) == pieceKing) || (((boardCheck[to] & g_lastCastle) == g_lastCastle)&&(g_lastCastle & maskCastle)))
+if(((g_board[to] & 7) == pieceKing) || (((boardCheck[to] & g_lastCastle) == g_lastCastle) && g_lastCastle & maskCastle))
 	g_inCheck = true;
 }
 
@@ -177,20 +177,18 @@ usColor = wt ?  colorWhite : colorBlack;
 enColor = wt ? colorBlack : colorWhite;
 eeColor = enColor | colorEmpty;
 var moves = [];
-var to,del;
-var color = wt ? 0 : 0x8;
 for(var n = 0;n < 64;n++){
 	var fr = arrField[n];
 	var f = g_board[fr];
 	if(f & usColor)f &= 7;else continue;
 	switch(f){
 		case 1:
-		del = wt ? -16 : 16;
-		to = fr + del;
+		var del = wt ? -16 : 16;
+		var to = fr + del;
 		if(g_board[to] & colorEmpty){
 			GeneratePwnMoves(moves,fr,to,true)
-			if((!g_board[fr-del-del]) && ((g_board[to+del] & colorEmpty)))
-				GeneratePwnMoves(moves,fr,to+del,true);
+			if(!g_board[fr-del-del] && g_board[to + del] & colorEmpty)
+				GeneratePwnMoves(moves,fr,to + del,true);
 		}
 		if(g_board[to - 1] & enColor)GeneratePwnMoves(moves,fr,to - 1,true);
 		else if((to - 1) == g_passing)GeneratePwnMoves(moves,fr,g_passing,true,moveflagPassing);
@@ -215,10 +213,10 @@ for(var n = 0;n < 64;n++){
 		GenerateShrMoves(moves,fr,[1,-1,15,-15,16,-16,17,-17]);
 		var cr = wt ? g_castleRights : g_castleRights >> 2;
 		if (cr & 1)
-			if(g_board[fr + 1] == colorEmpty && g_board[fr + 2] == colorEmpty)
+			if(g_board[fr + 1] & colorEmpty && g_board[fr + 2] & colorEmpty)
 				GenerateMove(moves,fr,fr + 2,true,moveflagCastleKing);
 		if (cr & 2)
-			if(g_board[fr - 1] == colorEmpty && g_board[fr - 2] == colorEmpty && g_board[fr - 3] == colorEmpty)
+			if(g_board[fr - 1] & colorEmpty && g_board[fr - 2] & colorEmpty && g_board[fr - 3] & colorEmpty)
 				GenerateMove(moves,fr,fr - 2,true,moveflagCastleQueen);
 		break;
 	}
@@ -369,7 +367,7 @@ while(n--){
 	var osScore = -g_baseEval + myMobility - enMobility;
 	if(g_move50 > 99)
 		osScore = 0;
-	else if((depth < depthL) || toPie){
+	else if((depth <= depthL) || toPie){
 		var me = GenerateAllMoves(whiteTurn);
 		if(g_inCheck){
 			myMoves--;
