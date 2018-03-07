@@ -18,7 +18,7 @@ var moveflagPromoteBishop = 0x40 << 16;
 var moveflagPromoteKnight = 0x80 << 16;
 var maskCastle = moveflagCastleKing | moveflagCastleQueen;
 var maskColor = colorBlack | colorWhite;
-var g_baseEval = 0;
+var adjMobility = 0;
 var g_captured = 0;
 var g_castleRights = 0xf;
 var g_depth = 0;
@@ -93,7 +93,6 @@ for(var n = 0;n < 6;n++){
 }
 
 function InitializeFromFen(fen){
-g_baseEval = 0;
 for(var n = 0;n < 64;n++)
 	g_board[arrField[n]] = colorEmpty;
 if(!fen)fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -135,8 +134,6 @@ for (var i = 0; i < pieces.length; i++){
 			break;
 		}
 		g_board[index] = piece;
-		var m = arrMaterial[piece & 7];
-		g_baseEval += isWhite ? m : -m;
 		col++;
 	}
 }
@@ -157,22 +154,33 @@ g_move50 = parseInt(chunks[4]);
 g_moveNumber = parseInt(chunks[5]);
 if(g_moveNumber)g_moveNumber--;
 g_moveNumber *= 2;
-if(!whiteTurn){
+if(!whiteTurn)
 	g_moveNumber++;
-	g_baseEval = -g_baseEval;
-}
 undoStack=[];
 }
 
-function GenerateMove(moveStack,fr,to,add,flags){
-if(add)
-	moveStack[moveStack.length] = fr | (to << 8) | flags;
-if(((g_board[to] & 7) == pieceKing) || (((boardCheck[to] & g_lastCastle) == g_lastCastle) && g_lastCastle & maskCastle))
+var countNA = 0;
+
+function GenerateMove(moves,fr,to,flag){
+adjMobility++;
+var p = g_board[to] & 7;
+if((p == pieceKing) || ((g_lastCastle & maskCastle) && ((boardCheck[to] & g_lastCastle) == g_lastCastle)))
 	g_inCheck = true;
+else{
+	var m = fr | (to << 8) | flag;
+	if(p || (flag == moveflagPassing))
+		moves[moves.length] = m;
+	else{
+		moves[moves.length] = moves[countNA];
+		moves[countNA++] = m;	
+	}
+}
 }
 
 function GenerateAllMoves(wt){
-g_inCheck = false;	
+g_inCheck = false;		
+countNA = 0;
+adjMobility = 0;
 usColor = wt ?  colorWhite : colorBlack;
 enColor = wt ? colorBlack : colorWhite;
 eeColor = enColor | colorEmpty;
@@ -181,6 +189,7 @@ for(var n = 0;n < 64;n++){
 	var fr = arrField[n];
 	var f = g_board[fr];
 	if(f & usColor)f &= 7;else continue;
+	adjMobility += arrMaterial[f];
 	switch(f){
 		case 1:
 		var del = wt ? -16 : 16;
@@ -214,10 +223,10 @@ for(var n = 0;n < 64;n++){
 		var cr = wt ? g_castleRights : g_castleRights >> 2;
 		if (cr & 1)
 			if(g_board[fr + 1] & colorEmpty && g_board[fr + 2] & colorEmpty)
-				GenerateMove(moves,fr,fr + 2,true,moveflagCastleKing);
+				GenerateMove(moves,fr,fr + 2,moveflagCastleKing);
 		if (cr & 2)
 			if(g_board[fr - 1] & colorEmpty && g_board[fr - 2] & colorEmpty && g_board[fr - 3] & colorEmpty)
-				GenerateMove(moves,fr,fr - 2,true,moveflagCastleQueen);
+				GenerateMove(moves,fr,fr - 2,moveflagCastleQueen);
 		break;
 	}
 }
@@ -225,21 +234,25 @@ return moves;
 }
 
 function GeneratePwnMoves(moves,fr,to,add,flag){
-var y = to >> 4;
-if (((y == 4) || (y == 11)) && add){
-	GenerateMove(moves,fr,to,add,moveflagPromoteQueen);
-	GenerateMove(moves,fr,to,add,moveflagPromoteRook);
-	GenerateMove(moves,fr,to,add,moveflagPromoteBishop);
-	GenerateMove(moves,fr,to,add,moveflagPromoteKnight);
-}else
-	GenerateMove(moves,fr,to,add,flag);
+if(((boardCheck[to] & g_lastCastle) == g_lastCastle) && g_lastCastle & maskCastle)
+	g_inCheck = true;
+else if(add){
+	var y = to >> 4;
+	if((y == 4) || (y == 11)){
+		GenerateMove(moves,fr,to,moveflagPromoteQueen);
+		GenerateMove(moves,fr,to,moveflagPromoteRook);
+		GenerateMove(moves,fr,to,moveflagPromoteBishop);
+		GenerateMove(moves,fr,to,moveflagPromoteKnight);
+	}else 
+		GenerateMove(moves,fr,to,flag);
+}
 }
 
 function GenerateShrMoves(moves,fr,dir){
 for(var n = 0;n < dir.length;n++){
 	var to = fr + dir[n];
 	if(g_board[to] & eeColor)
-		GenerateMove(moves,fr,to,true);
+		GenerateMove(moves,fr,to);
 }
 }
 
@@ -247,11 +260,11 @@ function GenerateStdMoves(moves,fr,dir){
 for(var n=0;n<dir.length;n++){
 	var to = fr + dir[n];
 	while (g_board[to] & colorEmpty){
-		GenerateMove(moves,fr,to,true);
+		GenerateMove(moves,fr,to);
 		to += dir[n];
 	}
 	if (g_board[to] & enColor)
-		GenerateMove(moves,fr,to,true);
+		GenerateMove(moves,fr,to);
 }
 }
 
@@ -278,10 +291,9 @@ if(flags & moveflagCastleKing){
 undoStack.push(new cUndo());
 g_passing = 0;
 var capturedType = g_captured & 0xF;
-if(capturedType){
-	g_baseEval += arrMaterial[g_captured & 7];
+if(capturedType)
 	g_move50 = 0;
-}else if((piece & 7) == piecePawn) {
+else if((piece & 7) == piecePawn) {
 	if(to == (fr + 32))g_passing = (fr + 16);
 	if(to == (fr - 32))g_passing = (fr - 16);
 	g_move50 = 0;
@@ -298,13 +310,10 @@ if (flags & moveflagPromotion){
 	else
 		newPiece |= pieceRook;
 	g_board[to] = newPiece;
-	g_baseEval -= arrMaterial[piece & 7];
-	g_baseEval += arrMaterial[newPiece & 7];
 }else
 	g_board[to] = g_board[fr];
 g_board[fr] = colorEmpty;
 g_castleRights &= boardCastle[fr] & boardCastle[to];
-g_baseEval = -g_baseEval;
 whiteTurn ^= 1;
 g_moveNumber++;
 }
@@ -320,7 +329,6 @@ undoStack.pop();
 g_passing = undo.passing;
 g_castleRights = undo.castle;
 g_move50 = undo.move50;
-g_baseEval = undo.value;
 g_lastCastle = undo.lastCastle;
 var captured=undo.captured;
 if (flags & moveflagCastleKing) {
@@ -347,10 +355,9 @@ var bsIn = -1;
 var bsFm = '';
 var bsPv = '';
 
-function GetScore(mu,enMobility,depth,depthL,alpha,beta){
-var check = 0;
-var myMobility = mu.length;
-var n = myMobility;
+function GetScore(mu,depth,depthL,alpha,beta){
+var myMobility = adjMobility;
+var n = mu.length;
 var myMoves = n;
 var alphaDe = 0;
 var alphaFm = '';
@@ -359,22 +366,18 @@ while(n--){
 	if(!(++g_totalNodes & 0x1fff))	
 		g_stop = ((depthL > 1) && ((g_timeout && (Date.now() - g_startTime > g_timeout)) ||  (g_nodeout && (g_totalNodes > g_nodeout))));
 	var cm = mu[n];
-	var to = (cm >> 8) & 0xFF;
-	var toPie = g_board[to] & 0x7;
 	MakeMove(cm);
 	g_depth = 0;
 	g_pv = '';
-	var osScore = -g_baseEval + myMobility - enMobility;
-	if(g_move50 > 99)
+	var me = GenerateAllMoves(whiteTurn);
+	var osScore = myMobility - adjMobility;
+	if(g_inCheck){
+		myMoves--;
+		osScore = -0xffff;
+	}else if(g_move50 > 99)
 		osScore = 0;
-	else if((depth <= depthL) || toPie){
-		var me = GenerateAllMoves(whiteTurn);
-		if(g_inCheck){
-			myMoves--;
-			osScore = -0xffff;
-		}else
-			osScore = -GetScore(me,myMobility,depth + 1,depthL,-beta,-alpha);
-	}
+	else if(depth < depthL)
+		osScore = -GetScore(me,depth + 1,depthL,-beta,-alpha);
 	UnmakeMove(cm);
 	if(g_stop)return -0xffff;
 	if(alpha < osScore){
@@ -410,23 +413,17 @@ return alpha;
 
 function Search(depth,time,nodes){
 var mu = GenerateAllMoves(whiteTurn);
-var myMobility = mu.length;
-var m1 = mu.length - 1;
 g_stop = false;
 g_totalNodes = 0;
 g_depthout = depth ? depth : 1;
 g_timeout = time;
 g_nodeout = nodes;
 do{
-	bsIn = m1;
-	var os = GetScore(mu,myMobility,1,g_depthout,-0xffff,0xffff);
-	if(bsIn != m1){
-		var m = mu[m1];
-		mu[m1] = mu[bsIn];
-		mu[bsIn] = m;
-	}
+	bsIn =  mu.length - 1;
+	var os = GetScore(mu,1,g_depthout,-0xffff,0xffff);
+	mu.push(mu.splice(bsIn,1));
 	if((g_depth < g_depthout++) || (os < - 0xf000) || (os > 0xf000))break;
-}while((!depth || (g_depthout < depth)) && !g_stop && m1);
+}while((!depth || (g_depthout < depth)) && !g_stop);
 var time = Date.now() - g_startTime;
 var nps = Math.floor((g_totalNodes / time) * 1000);
 var ponder = bsPv.split(' ');
@@ -441,7 +438,6 @@ this.captured = g_captured;
 this.passing = g_passing;
 this.castle = g_castleRights;
 this.move50 = g_move50;
-this.value = g_baseEval;
 this.lastCastle = g_lastCastle;
 }
 

@@ -187,7 +187,7 @@ for(var n = 0; n < 64; n++){
 		GenerateStdDestiny(4,n,x,y,[{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}]);//rook
 		GenerateStdDestiny(5,n,x,y,[{x:1,y:1},{x:-1,y:-1},{x:1,y:-1},{x:-1,y:1},{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}]);//queen		
 		for(var ph = 2;ph < 33;ph++){
-			var f = (ph - 2) / 32;
+			var f = ph / 32;
 			for(var p = 1;p < 7;p++){
 				var v = Math.floor(tmpMaterial[p - 1][0] * f + tmpMaterial[p - 1][1] * (1 - f));
 				var a = tmpCenter[p - 1][0];
