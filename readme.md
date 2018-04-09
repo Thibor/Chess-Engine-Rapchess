@@ -1,6 +1,7 @@
 # Rapspeed
 >Javascript UCI chess engines.
 * Rapchess - optimized for strength
+* Rapsimple - optimized for simplicity
 * Rapspeed - optimized for speed
 * Rapshort - optimized for size
 
