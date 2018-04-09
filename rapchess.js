@@ -25,8 +25,6 @@ var g_castleRights = 0xf; //&1 = wk, &2 = wq, &4 = bk, &8 = bq
 var g_depth = 0;
 var adjInsufficient = false;
 var g_passing = 65;
-var g_pieceM = 0;
-var g_pieceO = 0;
 var g_move50 = 0;
 var g_moveNumber = 0;
 var g_totalNodes = 0;
@@ -332,22 +330,21 @@ if(boardPromotion[to] && add){
 }
 
 function GenerateAllMoves(wt,attack){
-g_pieceM = 0;
-g_pieceO = 0;
-g_countMove = 0;
 g_inCheck = false;	
 adjMobility = 0;
 countNA = 0;
 colorEnemy = wt ? colorBlack : colorWhite;
 colorUs = wt ? colorWhite : colorBlack;
-var ml = 0;
+var pieceM = 0;
+var pieceN = 0;
+var pieceB = 0;
 var moves = [];
 var color = wt ? 0 : 8;
-var pieceIdx = (color | 1) << 4;//pawn
+var pieceIdx = (color | 1) << 4;
 var fr = g_pieceList[pieceIdx++];
 var row = 0;
 while(g_board[fr]){
-	g_pieceO++;
+	pieceM++;
 	GeneratePwnMoves(moves,attack,fr,g_destiny[wt][fr]);
 	if(g_inCheck)return [];
 	var x = 1 << (fr & 7);
@@ -363,52 +360,50 @@ if((row & 0x1c) == 0x08)adjMobility -= 32;
 if((row & 0x0e) == 0x04)adjMobility -= 32;
 if((row & 0x07) == 0x02)adjMobility -= 32;
 if((row & 0x03) == 0x01)adjMobility -= 32;
-pieceIdx = (color | pieceBishop) << 4;//bishop
+pieceIdx = (color | pieceKnight) << 4;
 fr = g_pieceList[pieceIdx++];
 while(g_board[fr]){
-	g_pieceM++;
-	ml = g_countMove;
-	GenerateStdMoves(moves,attack,fr,g_destiny[3][fr]);
-	if(g_inCheck)return [];
-	adjMobility += arrMobility[2][g_phase][g_countMove - ml];
-	fr = g_pieceList[pieceIdx++];
-}
-if(g_pieceM > 1)
-        adjMobility += 64;
-pieceIdx = (color | 2) << 4;//knight
-fr = g_pieceList[pieceIdx++];
-while(g_board[fr]){
-	g_pieceM++;
-	ml = g_countMove;
+	pieceN++;
+	g_countMove = 0;
 	GenerateShrMoves(moves,attack,fr,g_destiny[2][fr]);
 	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[1][g_phase][g_countMove - ml];
+	adjMobility += arrMobility[1][g_phase][g_countMove];
 	if(g_inCheck)return [];
 }
-pieceIdx = (color | 4) << 4;//rook
+pieceIdx = (color | pieceBishop) << 4;
 fr = g_pieceList[pieceIdx++];
 while(g_board[fr]){
-	g_pieceO++;
-	ml = g_countMove;
+	pieceB++;
+	g_countMove = 0;
+	GenerateStdMoves(moves,attack,fr,g_destiny[3][fr]);
+	if(g_inCheck)return [];
+	adjMobility += arrMobility[2][g_phase][g_countMove];
+	fr = g_pieceList[pieceIdx++];
+}
+pieceIdx = (color | 4) << 4;
+fr = g_pieceList[pieceIdx++];
+while(g_board[fr]){
+	pieceM++;
+	g_countMove = 0;
 	GenerateStdMoves(moves,attack,fr,g_destiny[4][fr]);
 	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[3][g_phase][g_countMove - ml];
+	adjMobility += arrMobility[3][g_phase][g_countMove];
 	if(g_inCheck)return [];
 }
-pieceIdx = (color | 5) << 4;//queen
+pieceIdx = (color | 5) << 4;
 fr = g_pieceList[pieceIdx++];
 while(g_board[fr]){
-	g_pieceO++;
-	ml = g_countMove;
+	pieceM++;
+	g_countMove = 0;
 	GenerateStdMoves(moves,attack,fr,g_destiny[5][fr]);
 	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[4][g_phase][g_countMove - ml];
+	adjMobility += arrMobility[4][g_phase][g_countMove];
 	if(g_inCheck)return [];
 }
-pieceIdx = (color | 6) << 4;//king
+pieceIdx = (color | 6) << 4;
 fr = g_pieceList[pieceIdx++];
 while(g_board[fr]){
-	ml = g_countMove;
+	g_countMove = 0;
 	GenerateShrMoves(moves,attack,fr,g_destiny[6][fr]);
 	var cr = wt ? g_castleRights : g_castleRights >> 2;
 	if (cr & 1)
@@ -418,12 +413,14 @@ while(g_board[fr]){
 		if((!g_board[fr - 1]) && (!g_board[fr - 2]) && (!g_board[fr - 3]))
 			GenerateMove(moves,fr,fr - 2,!attack,moveflagCastleQueen);
 	fr = g_pieceList[pieceIdx++];
-	adjMobility += arrMobility[5][g_phase][g_countMove - ml];
+	adjMobility += arrMobility[5][g_phase][g_countMove];
 	if(g_inCheck)return [];
 }
-adjInsufficient = (!g_pieceO) && (g_pieceM < 2);
-if(!g_pieceO && !g_pieceM)
+adjInsufficient = (!pieceM) && (pieceN + (pieceB << 1) < 3);
+if(!(pieceN | pieceB | pieceM))
 	adjMobility -= 64;	
+if(pieceB > 1)
+	adjMobility += 64;
 return moves;
 }
 
@@ -732,7 +729,7 @@ while(n--){
 	if(g_inCheck){
 		myMoves--;
 		osScore = -0xffff;
-	}else if((g_move50 > 99) || IsRepetition() || (myInsufficient && (adjInsufficient || osScore > 0)))
+	}else if((g_move50 > 99) || IsRepetition() || ((myInsufficient  || osScore < 0 ) && adjInsufficient))
 		osScore = 0;
 	else if(depth < depthL)
 		osScore = -GetScore(me,depth + 1,depthL,-beta,-alpha);
