@@ -1,8 +1,7 @@
-# Rapspeed
+# Rapchess
 >Javascript UCI chess engines.
 * Rapchess - optimized for strength
 * Rapsimple - optimized for simplicity
-* Rapspeed - optimized for speed
 * Rapshort - optimized for size
 
 To use this engine please download program Jsuci (https://sourceforge.net/projects/jsuci/).
