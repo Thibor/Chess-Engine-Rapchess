@@ -560,7 +560,7 @@ onmessage = function(e){
 (/^(.*?)\n?$/).exec(e.data);
 var msg = RegExp.$1;
 if(msg == 'uci'){
-	postMessage('id name Rapshort ' + version);
+	postMessage('id name Rapsimple ' + version);
 	postMessage('id author Thibor Raven');
 	postMessage('uciok');
 }else if (msg == 'isready') postMessage('readyok');

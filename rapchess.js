@@ -827,7 +827,7 @@ onmessage = function(e){
 (/^(.*?)\n?$/).exec(e.data);
 var msg = RegExp.$1;
 if(msg == 'uci'){
-		postMessage('id name Rapspeed ' + version);
+		postMessage('id name Rapchess ' + version);
 		postMessage('id author Thibor Raven');
 		postMessage('option name optCenter type spin default ' + optCenter + ' min -4 max 4');
 		postMessage('uciok');

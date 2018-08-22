@@ -1,0 +1,64 @@
+#divMain{
+margin:auto;		
+width:80%;
+}
+#divGitHub{
+top:0px;
+right:0px;
+width:200px;
+height:200px;
+overflow:hidden;
+position:absolute;
+z-index:1;
+}
+#GitHub{
+background-color:#800;	
+border:solid 2px black;	
+color:white;
+cursor:pointer;
+font:bold 14px Arial,Helvetica,sans-serif;
+height:20px;
+padding-top:3px;
+position:absolute;
+right:60px;
+text-align: center;
+transform:translate(50%,-50%) rotate(45deg);
+text-shadow: 0 0 8px black;
+top:60px;
+width:240px;
+-webkit-touch-callout: none;
+-webkit-user-select: none;
+-moz-user-select: none;
+}
+#GitHub:hover{
+background-color:#f00;
+}
+
+.field{width:64px;height:64px;cursor:pointer;position:relative;padding:0xp;}
+.fieldw{background-color:rgba(256,256,256,0.3);border: solid 1px #000;}
+.fieldb{background-color:rgba(0,0,0,0.3);border: solid 1px #000;}
+.fieldn{padding:8px 4px;}
+.boadiv{top:0px;bottom:0px;left:0px;right:0px;position:absolute;display:block;}
+#board{
+background-color:#842;
+display:inline-block;
+margin:8px auto;vertical-align:middle;position:relative;box-shadow: inset -8px -8px 16px rgba(0,0,0,0.6),inset 8px 8px 16px rgba(255,255,255,0.6),4px 4px 6px #000;border-radius:8px;font-weight:bold;color:white;text-shadow: 1px 1px 4px black,-1px -1px 4px black,1px -1px 4px black,-1px 1px 4px black;overflow:hidden;}
+#board table{border-spacing:0px;border-collapse:separate;}
+#board td{vertical-align:middle;text-align:center;min-width:32px;}
+#uciBody td{padding-right:16px;}
+
+.piece{width:100%;height:100%;position:relative;font-size:48px;z-index:1;}
+.kb{color:black;text-shadow: 0 0 10px white;}.kb:after{content:"♚";}
+.kw{color:white;text-shadow: 0 0 10px black;}.kw:after{content:"♔";}
+.qb{color:black;text-shadow: 0 0 10px white;}.qb:after{content:"♛";}
+.qw{color:white;text-shadow: 0 0 10px black;}.qw:after{content:"♕";}
+.rb{color:black;text-shadow: 0 0 10px white;}.rb:after{content:"♜";}
+.rw{color:white;text-shadow: 0 0 10px black;}.rw:after{content:"♖";}
+.nb{color:black;text-shadow: 0 0 10px white;}.nb:after{content:"♞";}
+.nw{color:white;text-shadow: 0 0 10px black;}.nw:after{content:"♘";}
+.bb{color:black;text-shadow: 0 0 10px white;}.bb:after{content:"♝";}
+.bw{color:white;text-shadow: 0 0 10px black;}.bw:after{content:"♗";}
+.pb{color:black;text-shadow: 0 0 10px white;}.pb:after{content:"♟";}
+.pw{color:white;text-shadow: 0 0 10px black;}.pw:after{content:"♙";}
+
+.hovered{box-shadow: inset 0 0 10px 1px yellow;}
