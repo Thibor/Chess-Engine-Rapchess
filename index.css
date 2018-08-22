@@ -39,6 +39,9 @@ background-color:#f00;
 .fieldb{background-color:rgba(0,0,0,0.3);border: solid 1px #000;}
 .fieldn{padding:8px 4px;}
 .boadiv{top:0px;bottom:0px;left:0px;right:0px;position:absolute;display:block;}
+.tacenter{text-align:center;}
+.taleft{text-align:left;}
+.taright{text-align:right;}
 #board{
 background-color:#842;
 display:inline-block;
