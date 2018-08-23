@@ -73,12 +73,17 @@ return null;
 }
 
 function cHistory(){
-this.fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+this.fen = '';
 this.list = [];
 }
 
 cHistory.prototype.Add = function(m){
 this.list.push(m);
+}
+
+cHistory.prototype.Clear=function(){
+this.fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+this.list = [];
 }
 
 cHistory.prototype.StrMoves=function(){
@@ -236,6 +241,7 @@ cChess.prototype.NewGame = function(){
 this.fieldS = -1;	
 InitializeFromFen();
 this.Render();
+History.Clear();
 var file = $('#inEngine').val();
 var param = $('#inParam').val();
 Engine.Init(file,param);
