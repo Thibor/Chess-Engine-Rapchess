@@ -4,6 +4,8 @@
 * Rapsimple - optimized for simplicity
 * Rapshort - optimized for size
 
+Try it out <a href="https://thibor.github.io/Rapchess/">here</a>.
+
 To use this engine please download program Jsuci (https://sourceforge.net/projects/jsuci/).
 
 ## Setup GUI Arena
