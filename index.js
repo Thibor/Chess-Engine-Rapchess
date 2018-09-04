@@ -215,7 +215,7 @@ var delx = fd.left - fs.left;
 var dely = fd.top - fs.top;
 $('#p'+isou).animate({'left':delx,'top':dely},{
 	duration:'slow',
-	start:function(){$(this).zIndex(200)},
+	start:function(){$(this).css('z-index',200)},
 	complete:function(){
 		Chess.AfterAnimation();
 	}
