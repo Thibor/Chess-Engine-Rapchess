@@ -10,6 +10,7 @@ height:200px;
 overflow:hidden;
 position:absolute;
 z-index:1;
+pointer-events:none;
 }
 #GitHub{
 background-color:#800;	
@@ -29,11 +30,14 @@ width:240px;
 -webkit-touch-callout: none;
 -webkit-user-select: none;
 -moz-user-select: none;
+pointer-events:auto;
+}
+#GitHub:after{
+content:'Star me on GitHub';
 }
 #GitHub:hover{
 background-color:#f00;
 }
-
 .field{width:6vmin;height:6vmin;cursor:pointer;position:relative;padding:0xp;}
 .fieldw{background-color:rgba(256,256,256,0.3);border: solid 1px #000;}
 .fieldb{background-color:rgba(0,0,0,0.3);border: solid 1px #000;}
