@@ -4,7 +4,7 @@
 * Rapsimple - optimized for simplicity
 * Rapshort - optimized for size
 
-Try it out <a href="https://thibor.github.io/Rapchess/">here</a>.
+Try it out here <a href="https://thibor.github.io/Rapchess/">demo1</a> <a href="https://codepen.io/thibor/pen/RYJYrp">demo2</a>.
 
 To use this engine please download program Jsuci (https://sourceforge.net/projects/jsuci/).
 
