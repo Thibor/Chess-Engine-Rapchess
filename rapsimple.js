@@ -1,4 +1,4 @@
-var version = '19-02-01';
+var version = '18-02-01';
 var piecePawn = 0x01;
 var pieceKnight = 0x02;
 var pieceBishop = 0x03;
@@ -245,26 +245,26 @@ for(var n = 0;n < 64;n++){
 		break;
 		case 2:
 		pieceN++;
-		GenerateUniMoves(moves,attack,fr,[14,-14,18,-18,31,-31,33,-33],1);
+		GenerateShrMoves(moves,attack,fr,[14,-14,18,-18,31,-31,33,-33]);
 		adjMobility += arrMobility[g_phase][f][g_countMove];
 		break;
 		case 3:
 		pieceB++;
-		GenerateUniMoves(moves,attack,fr,[15,-15,17,-17],7);
+		GenerateStdMoves(moves,attack,fr,[15,-15,17,-17]);
 		adjMobility += arrMobility[g_phase][f][g_countMove];
 		break;
 		case 4:
 		pieceM++;
-		GenerateUniMoves(moves,attack,fr,[1,-1,16,-16],7);
+		GenerateStdMoves(moves,attack,fr,[1,-1,16,-16]);
 		adjMobility += arrMobility[g_phase][f][g_countMove];
 		break;
 		case 5:
 		pieceM++;
-		GenerateUniMoves(moves,attack,fr,[1,-1,15,-15,16,-16,17,-17],7);
+		GenerateStdMoves(moves,attack,fr,[1,-1,15,-15,16,-16,17,-17]);
 		adjMobility += arrMobility[g_phase][f][g_countMove];
 		break;
 		case 6:
-		GenerateUniMoves(moves,attack,fr,[1,-1,15,-15,16,-16,17,-17],1);
+		GenerateShrMoves(moves,attack,fr,[1,-1,15,-15,16,-16,17,-17]);
 		var cr = wt ? g_castleRights : g_castleRights >> 2;
 		if (cr & 1)
 			if(g_board[fr + 1] & colorEmpty && g_board[fr + 2] & colorEmpty)
@@ -295,20 +295,25 @@ if (((y == 4) || (y == 11)) && add){
 	GenerateMove(moves,fr,to,add,flag);
 }
 
-function GenerateUniMoves(moves,attack,fr,dir,count){
+function GenerateShrMoves(moves,attack,fr,dir){
 for(var n = 0;n < dir.length;n++){
-	var to = fr;
-	var c = count;
-	while(c--){
+	var to = fr + dir[n];
+	if(g_board[to] & colorEmpty)
+		GenerateMove(moves,fr,to,!attack);
+	else if(g_board[to] & enColor)
+		GenerateMove(moves,fr,to,true);
+}
+}
+
+function GenerateStdMoves(moves,attack,fr,dir){
+for(var n=0;n<dir.length;n++){
+	var to = fr + dir[n];
+	while (g_board[to] & colorEmpty){
+		GenerateMove(moves,fr,to,!attack);
 		to += dir[n];
-		if(g_board[to] & colorEmpty)
-			GenerateMove(moves,fr,to,!attack);
-		else if(g_board[to] & enColor){
-			GenerateMove(moves,fr,to,true);
-			break;
-		}else
-			break;
 	}
+	if (g_board[to] & enColor)
+		GenerateMove(moves,fr,to,true);
 }
 }
 
