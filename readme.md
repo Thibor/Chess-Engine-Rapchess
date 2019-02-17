@@ -1,8 +1,5 @@
 # Chess Engine Rapchess
->Javascript UCI chess engines.
-* Rapchess - optimized for strength
-* Rapsimple - optimized for simplicity
-* Rapshort - optimized for size
+>Javascript UCI chess engine.
 
 Try it out here <a href="https://thibor.github.io/Rapchess/">demo1</a> <a href="https://codepen.io/thibor/pen/RYJYrp">demo2</a>.
 
