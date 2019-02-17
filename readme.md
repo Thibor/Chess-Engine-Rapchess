@@ -24,4 +24,4 @@ In Comand Line Parameters please write path to <b>rapchess.js</b>.
  
 Inside Winboard directory please create directory <b>Jsuci</b> with file rapchess.js and jsuci.exe, and you should click in menu <b>Engine / Edit Engine List</b> and add line:
  
-<b>"Rapspeed" -fd "..\Jsuci" -fcp "jsuci.exe rapchess.js" /fUCI</b>
+<b>"Rapchess" -fd "..\Jsuci" -fcp "jsuci.exe rapchess.js" /fUCI</b>
