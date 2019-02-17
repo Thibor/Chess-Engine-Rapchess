@@ -1,4 +1,4 @@
-# Rapchess
+# Chess Engine Rapchess
 >Javascript UCI chess engines.
 * Rapchess - optimized for strength
 * Rapsimple - optimized for simplicity
@@ -12,7 +12,7 @@ To use this engine please download program Jsuci (https://sourceforge.net/projec
 
 You need download program Arena (http://www.playwitharena.com/?Download).
 
-In Comand Line please write path to jsuci.exe (<b>D:\Games\Chess\Arena\Engines\jsuci\jsuci.exe</b>).
+In Comand Line please write path to jsuci.exe (<b>C:\Games\Chess\Arena\Engines\jsuci\jsuci.exe</b>).
 
 In Comand Line Parameters please write path to <b>rapchess.js</b>.
 
