@@ -22,6 +22,6 @@ In Comand Line Parameters please write path to <b>rapchess.js</b>.
  
  You need download program Winboard (http://www.open-aurec.com/wbforum/viewtopic.php?t=51528).
  
-Inside Winboard directory please create directory <b>Jsuci</b> with file rapspeed.js and jsuci.exe, and you should click in menu <b>Engine / Edit Engine List</b> and add line:
+Inside Winboard directory please create directory <b>Jsuci</b> with file rapchess.js and jsuci.exe, and you should click in menu <b>Engine / Edit Engine List</b> and add line:
  
 <b>"Rapspeed" -fd "..\Jsuci" -fcp "jsuci.exe rapchess.js" /fUCI</b>
