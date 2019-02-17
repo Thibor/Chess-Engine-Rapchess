@@ -1,5 +1,5 @@
 function MakeSquare(row, column) {
-return ((row + 4) << 4) | (column + 4);
+return (row << 3) | column;
 }
 
 function GenerateValidMoves(){
@@ -38,12 +38,12 @@ return {s:ns,d:nd,p:emo.charAt(4)};
 function GmoToXmo(gmo){
 var ma=(gmo & 0xFF);
 var mb=(gmo >> 8) & 0xFF;
-var max=(ma & 0xf)-4;
-var mbx=(mb & 0xf)-4;
-var may=(ma >> 4)-4;
-var mby=(mb >> 4)-4;
-ma=may*8+max;
-mb=mby*8+mbx;
+var max=(ma & 0x7);
+var mbx=(mb & 0x7);
+var may=(ma >> 3);
+var mby=(mb >> 3);
+ma = may * 8 + max;
+mb = mby * 8 + mbx;
 return {s:ma,d:mb,p:'q'};
 }
 
@@ -294,9 +294,7 @@ $('#f'+this.fieldS).addClass('hovered');
 cChess.prototype.RenderPiece = function(){
 var rn = ['','p','n','b','r','q','k'];
 for(var i = 0;i < 64;i++){
-	var x = i % 8;
-	var y = Math.floor(i / 8);
-	var piece = g_board[((y + 4) * 0x10) + x + 4];
+	var piece = g_board[i];
 	var pr = piece & 0x7;
 	if(pr && pr < 7){
 		var pieceName = rn[pr];
