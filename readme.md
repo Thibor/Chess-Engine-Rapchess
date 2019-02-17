@@ -15,8 +15,6 @@ You need download program Arena (http://www.playwitharena.com/?Download).
 In Comand Line please write path to jsuci.exe (<b>C:\Games\Chess\Arena\Engines\jsuci\jsuci.exe</b>).
 
 In Comand Line Parameters please write path to <b>rapchess.js</b>.
-
- <img src="arena.jpg" />
  
  ## Setup GUI Winboard
  
