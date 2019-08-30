@@ -709,7 +709,6 @@ return alpha;
 }
 
 function GetScore(mu,depth,depthL,alpha,beta){
-var check = 0;
 var n = mu.length;
 var myMoves = n;
 var alphaDe = 0;
@@ -719,7 +718,7 @@ var myMobility = adjMobility;
 var myInsufficient = adjInsufficient;
 while(n--){
 	if(!(++g_totalNodes & 0x1fff))	
-		g_stop = ((depthL > 1) && ((g_timeout && (Date.now() - g_startTime > g_timeout)) ||  (g_nodeout && (g_totalNodes > g_nodeout))));
+		g_stop = (g_timeout && (Date.now() - g_startTime > g_timeout)) || (g_nodeout && (g_totalNodes > g_nodeout));
 	var cm = mu[n];
 	MakeMove(cm);
 	var me = GenerateAllMoves(whiteTurn,depth == depthL);
@@ -796,14 +795,13 @@ do{
 		mu.push(m);
 	}
 	if((g_depth < g_depthout++) || (os < - 0xf000) || (os > 0xf000))break;
-}while((!depth || (g_depthout < depth)) && !g_stop && m1);
+}while(!g_stop && !depth && m1);
 var time = Date.now() - g_startTime;
 var nps = Math.floor((g_totalNodes / time) * 1000);
 var ponder = bsPv.split(' ');
 var pm = ponder.length > 1 ? ' ponder ' + ponder[1] : '';
 postMessage('info nodes ' + g_totalNodes + ' time ' + time + ' nps ' + nps);
 postMessage('bestmove ' + bsFm + pm);
-return true;
 }
 
 var cUndo = function(){
@@ -827,11 +825,12 @@ onmessage = function(e){
 (/^(.*?)\n?$/).exec(e.data);
 var msg = RegExp.$1;
 if(msg == 'uci'){
-		postMessage('id name Rapchess ' + version);
-		postMessage('id author Thibor Raven');
-		postMessage('option name optCenter type spin default ' + optCenter + ' min -4 max 4');
-		postMessage('uciok');
-}else if (msg == 'isready') postMessage('readyok');
+	postMessage('id name Rapchess ' + version);
+	postMessage('id author Thibor Raven');
+	postMessage('option name optCenter type spin default ' + optCenter + ' min -4 max 4');
+	postMessage('uciok');
+}else if (msg == 'isready')
+	postMessage('readyok');
 else if(msg == 'stop')g_stop = true;
 else if(msg == 'quit')close();
 else if(re = (/setoption(?: optCenter (\d+))+/).exec(msg))optCenter = re[1] | 0;
