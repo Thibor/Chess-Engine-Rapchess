@@ -126,7 +126,6 @@ function FormatMove(move) {
 	return result;
 }
 
-
 function GetMoveFromString(s) {
 	var moves = GenerateAllMoves(whiteTurn, false);
 	for (var i = 0; i < moves.length; i++)
