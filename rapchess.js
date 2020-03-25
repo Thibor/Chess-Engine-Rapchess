@@ -192,16 +192,14 @@ function Initialize() {
 				a = optCenter > 0 ? a << optCenter : a >> optCenter;
 				b = optCenter > 0 ? b << optCenter : b >> optCenter;
 				v += Math.floor((a * f + b * (1 - f)) * center);
-				pieceValue[ph][p][n] = v;
-				pieceValue[ph][p | 8][nb] = v;
 				if (p == 1 && y > 0 && y < 7) {
 					var py = 6 - y;
 					a = tmpPassed[py][0];
 					b = tmpPassed[py][1];
-					v = Math.floor(a * f + b * (1 - f));
-					pieceValue[ph][p][n] += v;
-					pieceValue[ph][p | 8][nb] += v;
+					v += Math.floor(a * f + b * (1 - f));
 				}
+				pieceValue[ph][p][n] = v;
+				pieceValue[ph][p | 8][nb] = v;
 			}
 		}
 	}
@@ -416,8 +414,6 @@ function GenerateAllMoves(wt, attack) {
 		fr = g_pieceList[pieceIdx++];
 	}
 	adjInsufficient = (!pieceM) && (pieceN + (pieceB << 1) < 3);
-	if (!(pieceN | pieceB | pieceM))
-		adjMobility -= 64;
 	if (pieceB > 1)
 		adjMobility += 64;
 	return moves;
@@ -707,7 +703,7 @@ function Quiesce(mu, depth, depthL, alpha, beta, score) {
 	return alpha;
 }
 
-function GetScore(mu, depth, depthL, alpha, beta) {
+function GetScore(mu, ply, depth, alpha, beta) {
 	var n = mu.length;
 	var myMoves = n;
 	var alphaDe = 0;
@@ -720,7 +716,7 @@ function GetScore(mu, depth, depthL, alpha, beta) {
 			g_stop = (g_timeout && (Date.now() - g_startTime > g_timeout)) || (g_nodeout && (g_totalNodes > g_nodeout));
 		var cm = mu[n];
 		MakeMove(cm);
-		var me = GenerateAllMoves(whiteTurn, depth == depthL);
+		var me = GenerateAllMoves(whiteTurn, ply == depth);
 		g_depth = 0;
 		g_pv = '';
 		var osScore = -g_baseEval + myMobility - adjMobility;
@@ -729,10 +725,10 @@ function GetScore(mu, depth, depthL, alpha, beta) {
 			osScore = -0xffff;
 		} else if ((g_move50 > 99) || IsRepetition() || ((myInsufficient || osScore < 0) && adjInsufficient))
 			osScore = 0;
-		else if (depth < depthL)
-			osScore = -GetScore(me, depth + 1, depthL, -beta, -alpha);
+		else if (ply < depth)
+			osScore = -GetScore(me, ply + 1, depth, -beta, -alpha);
 		else
-			osScore = -Quiesce(me, 1, depthL, -beta, -alpha, -osScore);
+			osScore = -Quiesce(me, 1, depth, -beta, -alpha, -osScore);
 		UnmakeMove(cm);
 		if (g_stop) return -0xffff;
 		if (alpha < osScore) {
@@ -740,7 +736,7 @@ function GetScore(mu, depth, depthL, alpha, beta) {
 			alphaFm = FormatMove(cm);
 			alphaPv = alphaFm + ' ' + g_pv;
 			alphaDe = g_depth + 1;
-			if (depth == 1) {
+			if (ply == 1) {
 				if (osScore > 0xf000)
 					g_scoreFm = 'mate ' + ((0xffff - osScore) >> 1);
 				else if (osScore < -0xf000)
@@ -759,7 +755,7 @@ function GetScore(mu, depth, depthL, alpha, beta) {
 	}
 	if (!myMoves) {
 		GenerateAllMoves(whiteTurn ^ 1, true);
-		if (!g_inCheck) alpha = 0; else alpha = -0xffff + depth;
+		if (!g_inCheck) alpha = 0; else alpha = -0xffff + ply;
 	}
 	g_depth = alphaDe;
 	g_pv = alphaPv;
@@ -793,13 +789,13 @@ function Search(depth, time, nodes) {
 			var m = mu.splice(bsIn, 1);
 			mu.push(m);
 		}
+		var time = Date.now() - g_startTime;
+		var nps = Math.floor((g_totalNodes / time) * 1000);
+		postMessage('info nodes ' + g_totalNodes + ' time ' + time + ' nps ' + nps);
 		if ((g_depth < g_depthout++) || (os < - 0xf000) || (os > 0xf000)) break;
 	} while (!g_stop && !depth && m1);
-	var time = Date.now() - g_startTime;
-	var nps = Math.floor((g_totalNodes / time) * 1000);
 	var ponder = bsPv.split(' ');
 	var pm = ponder.length > 1 ? ' ponder ' + ponder[1] : '';
-	postMessage('info nodes ' + g_totalNodes + ' time ' + time + ' nps ' + nps);
 	postMessage('bestmove ' + bsFm + pm);
 }
 
@@ -847,9 +843,8 @@ onmessage = function (e) {
 		var n = GetNumber(msg, /nodes (\d+)/, 0);
 		if (!t && !d && !n) {
 			var ct = whiteTurn ? GetNumber(msg, /wtime (\d+)/, 0) : GetNumber(msg, /btime (\d+)/, 0);
-			var ci = whiteTurn ? GetNumber(msg, /winc (\d+)/, 0) : GetNumber(msg, /binc (\d+)/, 0);
 			var mg = GetNumber(msg, /movestogo (\d+)/, 32);
-			t = Math.floor(ct / mg) + ci - 0xff;
+			t = Math.floor(ct / (mg + 1));
 		}
 		Search(d, t, n);
 	}
