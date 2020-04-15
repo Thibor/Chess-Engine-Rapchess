@@ -842,14 +842,18 @@ onmessage = function (e) {
 		var d = GetNumber(msg, /depth (\d+)/, 0);
 		var n = GetNumber(msg, /nodes (\d+)/, 0);
 		if (!t && !d && !n) {
-			var ct = whiteTurn ? GetNumber(msg, /wtime (\d+)/, 0) : GetNumber(msg, /btime (\d+)/, 0);
+			t = whiteTurn ? GetNumber(msg, /wtime (\d+)/, 0) : GetNumber(msg, /btime (\d+)/, 0);
 			var mg = GetNumber(msg, /movestogo (\d+)/, 32);
-			t = Math.floor(ct / mg);
+			t = Math.floor(t / mg);
+			if (t < 1)
+				t = 1;
 		}
 		if(t > 0){
 			t -= 0x20;
-			if(t < 1)
-				t = 1;
+			if(t < 1){
+				t = 0;
+				d = 1;
+			}
 		}
 		Search(d, t, n);
 	}
