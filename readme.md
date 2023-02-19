@@ -1,4 +1,9 @@
 # Chess Engine Rapchess
+
+<p align="center">
+<img src="https://github.com/Thibor/Chess-Engine-RapChess/blob/master/Resources/Rapchess.bmp" />
+</p>
+
 >Javascript UCI chess engine.
 
 Try it out here <a href="https://thibor.github.io//Chess-Engine-Rapchess/">demo1</a> <a href="https://codepen.io/thibor/pen/RYJYrp">demo2</a>.
