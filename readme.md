@@ -2,6 +2,7 @@
 
 <div align="center" style="padding-top: 50px">
 <img src="/Chess-Engine-RapChess/Resources/Rapchess.bmp" />
+<img src="https://github.com/Thibor/Chess-Engine-RapChess/blob/master/Resources/Rapchess.bmp" />
     <br>
     <br>
     <b><i>C# chess game</i></b>
