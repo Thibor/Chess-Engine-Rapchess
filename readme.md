@@ -9,7 +9,6 @@
     <br>
     <img src="https://img.shields.io/github/downloads/Thibor/Chess-Engine-RapChess/total?color=critical&style=for-the-badge">
     <img src="https://img.shields.io/github/license/Thibor/Chess-Engine-RapChess?color=blue&style=for-the-badge">
-    <img src="https://img.shields.io/github/v/tag/Thibor/Chess-Engine-RapChess.svg?color=critical&sort=semver&style=for-the-badge">
     <img src="https://img.shields.io/github/v/release/Thibor/Chess-Engine-RapChess?color=blue&label=Latest%20release&style=for-the-badge">
     <img src="https://img.shields.io/github/last-commit/Thibor/Chess-Engine-RapChess?color=critical&style=for-the-badge">
 	<img src="https://img.shields.io/github/commits-since/Thibor/Chess-Engine-RapChess/latest?style=for-the-badge">
