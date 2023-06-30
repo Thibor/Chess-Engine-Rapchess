@@ -848,9 +848,9 @@ onmessage = function (e) {
 			if (t < 1)
 				t = 1;
 		}
-		if(t > 0){
+		if (t > 0) {
 			t -= 0x20;
-			if(t < 1){
+			if (t < 1) {
 				t = 0;
 				d = 1;
 			}

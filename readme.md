@@ -1,5 +1,19 @@
 # Chess Engine Rapchess
 
+<div align="center" style="padding-top: 50px">
+<img src="/Chess-Engine-RapChess/Resources/Rapchess.bmp" />
+    <br>
+    <br>
+    <b><i>C# chess game</i></b>
+    <br>
+    <br>
+    <img src="https://img.shields.io/github/downloads/Thibor/Chess-Engine-RapChess/total?color=critical&style=for-the-badge">
+    <img src="https://img.shields.io/github/license/Thibor/Chess-Engine-RapChess?color=blue&style=for-the-badge">
+    <br>
+    <img src="https://img.shields.io/github/v/release/Thibor/Chess-Engine-RapChess?color=blue&label=Latest%20release&style=for-the-badge">
+    <img src="https://img.shields.io/github/last-commit/Thibor/Chess-Engine-RapChess?color=critical&style=for-the-badge">
+</div>
+
 <p align="center">
 <img src="https://github.com/Thibor/Chess-Engine-RapChess/blob/master/Resources/Rapchess.bmp" />
 </p>
